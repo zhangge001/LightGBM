@@ -377,16 +377,30 @@ inline static void Int32ToStr(int32_t value, char* buffer) {
   Uint32ToStr(u, buffer);
 }
 
-inline static void DoubleToStr(double value, char* buffer, size_t
-                               #ifdef _MSC_VER
-                               buffer_len
-                               #endif
+inline static void DoubleToStr(double value, char* buffer,
+                               size_t
+#ifdef _MSC_VER
+                                   buffer_len
+#endif
 ) {
-  #ifdef _MSC_VER
+#ifdef _MSC_VER
   sprintf_s(buffer, buffer_len, "%.17g", value);
-  #else
+#else
   sprintf(buffer, "%.17g", value);
-  #endif
+#endif
+}
+
+inline static void Int64ToStr(int64_t value, char* buffer,
+                               size_t
+#ifdef _MSC_VER
+                                   buffer_len
+#endif
+) {
+#ifdef _MSC_VER
+  sprintf_s(buffer, buffer_len, "%I64d", value);
+#else
+  sprintf(buffer, "%lld", value);
+#endif
 }
 
 inline static const char* SkipSpaceAndTab(const char* p) {
@@ -455,6 +469,22 @@ inline static std::string ArrayToStringFast(const std::vector<T>& arr, size_t n)
   str_buf << buffer.data();
   for (size_t i = 1; i < std::min(n, arr.size()); ++i) {
     helper(arr[i], buffer.data(), buf_len);
+    str_buf << ' ' << buffer.data();
+  }
+  return str_buf.str();
+}
+
+inline static std::string ArrayToString(const std::vector<int64_t>& arr, size_t n) {
+  if (arr.empty() || n == 0) {
+    return std::string("");
+  }
+  const size_t buf_len = 32;
+  std::vector<char> buffer(buf_len);
+  std::stringstream str_buf;
+  Int64ToStr(arr[0], buffer.data(), buf_len);
+  str_buf << buffer.data();
+  for (size_t i = 1; i < std::min(n, arr.size()); ++i) {
+    Int64ToStr(arr[i], buffer.data(), buf_len);
     str_buf << ' ' << buffer.data();
   }
   return str_buf.str();
@@ -777,14 +807,14 @@ static void ParallelSort(_RanIt _First, _RanIt _Last, _Pr _Pred) {
 }
 
 // Check that all y[] are in interval [ymin, ymax] (end points included); throws error if not
-template <typename T>
-inline static void CheckElementsIntervalClosed(const T *y, T ymin, T ymax, int ny, const char *callername) {
-  auto fatal_msg = [&y, &ymin, &ymax, &callername](int i) {
+template <typename T, typename T2>
+inline static void CheckElementsIntervalClosed(const T *y, T ymin, T ymax, T2 ny, const char *callername) {
+  auto fatal_msg = [&y, &ymin, &ymax, &callername](T2 i) {
     std::ostringstream os;
     os << "[%s]: does not tolerate element [#%i = " << y[i] << "] outside [" << ymin << ", " << ymax << "]";
     Log::Fatal(os.str().c_str(), callername, i);
   };
-  for (int i = 1; i < ny; i += 2) {
+  for (T2 i = 1; i < ny; i += 2) {
     if (y[i - 1] < y[i]) {
       if (y[i - 1] < ymin) {
         fatal_msg(i - 1);
@@ -808,12 +838,12 @@ inline static void CheckElementsIntervalClosed(const T *y, T ymin, T ymax, int n
 
 // One-pass scan over array w with nw elements: find min, max and sum of elements;
 // this is useful for checking weight requirements.
-template <typename T1, typename T2>
-inline static void ObtainMinMaxSum(const T1 *w, int nw, T1 *mi, T1 *ma, T2 *su) {
+template <typename T1, typename T2, typename T3>
+inline static void ObtainMinMaxSum(const T1 *w, T3 nw, T1 *mi, T1 *ma, T2 *su) {
   T1 minw;
   T1 maxw;
   T1 sumw;
-  int i;
+  T3 i;
   if (nw & 1) {  // odd
     minw = w[0];
     maxw = w[0];
@@ -851,8 +881,9 @@ inline static void ObtainMinMaxSum(const T1 *w, int nw, T1 *mi, T1 *ma, T2 *su) 
   }
 }
 
-inline static std::vector<uint32_t> EmptyBitset(int n) {
-  int size = n / 32;
+template <typename T>
+inline static std::vector<uint32_t> EmptyBitset(T n) {
+  int size = static_cast<int>(n / 32);
   if (n % 32 != 0) ++size;
   return std::vector<uint32_t>(size);
 }
@@ -860,8 +891,8 @@ inline static std::vector<uint32_t> EmptyBitset(int n) {
 template<typename T>
 inline static void InsertBitset(std::vector<uint32_t>* vec, const T val) {
   auto& ref_v = *vec;
-  int i1 = val / 32;
-  int i2 = val % 32;
+  int i1 = static_cast<int>(val / 32);
+  int i2 = static_cast<int>(val % 32);
   if (static_cast<int>(vec->size()) < i1 + 1) {
     vec->resize(i1 + 1, 0);
   }
@@ -882,13 +913,13 @@ inline static std::vector<uint32_t> ConstructBitset(const T* vals, int n) {
   return ret;
 }
 
-template<typename T>
-inline static bool FindInBitset(const uint32_t* bits, int n, T pos) {
-  int i1 = pos / 32;
+template <typename T1, typename T2>
+inline static bool FindInBitset(const uint32_t* bits, T1 n, T2 pos) {
+  T1 i1 = static_cast<T1>(pos / 32);
   if (i1 >= n) {
     return false;
   }
-  int i2 = pos % 32;
+  T1 i2 = static_cast<T1>(pos % 32);
   return (bits[i1] >> i2) & 1;
 }
 

@@ -258,7 +258,7 @@ class KullbackLeiblerDivergence : public Metric {
     weights_ = metadata.weights();
 
     CHECK_NOTNULL(label_);
-    Common::CheckElementsIntervalClosed<label_t>(label_, 0.0f, 1.0f, num_data_, GetName()[0].c_str());
+    Common::CheckElementsIntervalClosed(label_, 0.0f, 1.0f, num_data_, GetName()[0].c_str());
     Log::Info("[%s:%s]: (metric) labels passed interval [0, 1] check",  GetName()[0].c_str(), __func__);
 
     if (weights_ == nullptr) {

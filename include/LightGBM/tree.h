@@ -59,7 +59,8 @@ class Tree {
   */
   int Split(int leaf, int feature, int real_feature, uint32_t threshold_bin,
             double threshold_double, double left_value, double right_value,
-            int left_cnt, int right_cnt, double left_weight, double right_weight,
+            data_size_t left_cnt, data_size_t right_cnt, double left_weight,
+            double right_weight,
             float gain, MissingType missing_type, bool default_left);
 
   /*!
@@ -82,7 +83,10 @@ class Tree {
   */
   int SplitCategorical(int leaf, int feature, int real_feature, const uint32_t* threshold_bin, int num_threshold_bin,
                        const uint32_t* threshold, int num_threshold, double left_value, double right_value,
-                       int left_cnt, int right_cnt, double left_weight, double right_weight, float gain, MissingType missing_type);
+                       data_size_t left_cnt, data_size_t right_cnt,
+                       double left_weight,
+                       double right_weight, float gain,
+                       MissingType missing_type);
 
   /*! \brief Get the output of one leaf */
   inline double LeafOutput(int leaf) const { return leaf_value_[leaf]; }
@@ -139,7 +143,9 @@ class Tree {
   inline double split_gain(int split_idx) const { return split_gain_[split_idx]; }
 
   /*! \brief Get the number of data points that fall at or below this node*/
-  inline int data_count(int node) const { return node >= 0 ? internal_count_[node] : leaf_count_[~node]; }
+  inline data_size_t data_count(int node) const {
+    return node >= 0 ? internal_count_[node] : leaf_count_[~node];
+  }
 
   /*!
   * \brief Shrinkage for the tree's output
@@ -303,7 +309,9 @@ class Tree {
     }
   }
 
-  inline void Split(int leaf, int feature, int real_feature, double left_value, double right_value, int left_cnt, int right_cnt,
+  inline void Split(int leaf, int feature, int real_feature, double left_value,
+                    double right_value, data_size_t left_cnt,
+                    data_size_t right_cnt,
                     double left_weight, double right_weight, float gain);
   /*!
   * \brief Find leaf index of which record belongs by features
@@ -392,13 +400,13 @@ class Tree {
   /*! \brief weight of leaves */
   std::vector<double> leaf_weight_;
   /*! \brief DataCount of leaves */
-  std::vector<int> leaf_count_;
+  std::vector<data_size_t> leaf_count_;
   /*! \brief Output of non-leaf nodes */
   std::vector<double> internal_value_;
   /*! \brief weight of non-leaf nodes */
   std::vector<double> internal_weight_;
   /*! \brief DataCount of non-leaf nodes */
-  std::vector<int> internal_count_;
+  std::vector<data_size_t> internal_count_;
   /*! \brief Depth for leaves */
   std::vector<int> leaf_depth_;
   double shrinkage_;
@@ -406,7 +414,8 @@ class Tree {
 };
 
 inline void Tree::Split(int leaf, int feature, int real_feature,
-                        double left_value, double right_value, int left_cnt, int right_cnt,
+                        double left_value, double right_value,
+                        data_size_t left_cnt, data_size_t right_cnt,
                         double left_weight, double right_weight, float gain) {
   int new_node_idx = num_leaves_ - 1;
   // update parent info

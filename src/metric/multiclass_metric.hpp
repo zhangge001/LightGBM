@@ -220,9 +220,9 @@ class AucMuMetric : public Metric {
     }
 
     auto S = std::vector<std::vector<double>>(num_class_, std::vector<double>(num_class_, 0));
-    int i_start = 0;
+    data_size_t i_start = 0;
     for (int i = 0; i < num_class_; ++i) {
-      int j_start = i_start + class_sizes[i];
+      data_size_t j_start = i_start + class_sizes[i];
       for (int j = i + 1; j < num_class_; ++j) {
         std::vector<double> curr_v;
         for (int k = 0; k < num_class_; ++k) {

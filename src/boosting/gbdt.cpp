@@ -215,8 +215,9 @@ void GBDT::Bagging(int iter) {
       || need_re_bagging_) {
     need_re_bagging_ = false;
     const data_size_t min_inner_size = 1024;
-    const int n_block = std::min(
-        num_threads_, (num_data_ + min_inner_size - 1) / min_inner_size);
+    const int n_block = std::min<int>(
+        num_threads_,
+        static_cast<int>((num_data_ + min_inner_size - 1) / min_inner_size));
     data_size_t inner_size = SIZE_ALIGNED((num_data_ + n_block - 1) / n_block);
     OMP_INIT_EX();
     #pragma omp parallel for schedule(static, 1)
@@ -405,7 +406,7 @@ bool GBDT::TrainOneIter(const score_t* gradients, const score_t* hessians) {
     if (new_tree->num_leaves() > 1) {
       should_continue = true;
       auto score_ptr = train_score_updater_->score() + offset;
-      auto residual_getter = [score_ptr](const label_t* label, int i) {return static_cast<double>(label[i]) - score_ptr[i]; };
+      auto residual_getter = [score_ptr](const label_t* label, data_size_t i) {return static_cast<double>(label[i]) - score_ptr[i]; };
       tree_learner_->RenewTreeOutput(new_tree.get(), objective_function_, residual_getter,
                                      num_data_, bag_data_indices_.data(), bag_data_cnt_);
       // shrinkage by learning rate
@@ -759,7 +760,7 @@ void GBDT::ResetBaggingConfig(const Config* config, bool is_change_dataset) {
     left_write_pos_buf_.resize(num_threads_);
     right_write_pos_buf_.resize(num_threads_);
 
-    double average_bag_rate = (bag_data_cnt_ / num_data_) / config->bagging_freq;
+    double average_bag_rate = static_cast<double>(bag_data_cnt_ / num_data_) / config->bagging_freq;
     is_use_subset_ = false;
     const int group_threshold_usesubset = 100;
     if (tree_learner_->IsHistColWise() && average_bag_rate <= 0.5

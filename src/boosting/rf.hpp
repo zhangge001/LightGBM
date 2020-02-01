@@ -131,7 +131,7 @@ class RF : public GBDT {
 
       if (new_tree->num_leaves() > 1) {
         double pred = init_scores_[cur_tree_id];
-        auto residual_getter = [pred](const label_t* label, int i) {return static_cast<double>(label[i]) - pred; };
+        auto residual_getter = [pred](const label_t* label, data_size_t i) {return static_cast<double>(label[i]) - pred; };
         tree_learner_->RenewTreeOutput(new_tree.get(), objective_function_, residual_getter,
           num_data_, bag_data_indices_.data(), bag_data_cnt_);
         if (std::fabs(init_scores_[cur_tree_id]) > kEpsilon) {

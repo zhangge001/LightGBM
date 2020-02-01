@@ -44,7 +44,7 @@ public:
   friend Dense4bitsBinIterator;
   explicit Dense4bitsBin(data_size_t num_data)
     : num_data_(num_data) {
-    int len = (num_data_ + 1) / 2;
+    data_size_t len = (num_data_ + 1) / 2;
     data_.resize(len, static_cast<uint8_t>(0));
     buf_ = std::vector<uint8_t>(len, static_cast<uint8_t>(0));
   }
@@ -53,8 +53,8 @@ public:
   }
 
   void Push(int, data_size_t idx, uint32_t value) override {
-    const int i1 = idx >> 1;
-    const int i2 = (idx & 1) << 2;
+    const data_size_t i1 = idx >> 1;
+    const data_size_t i2 = (idx & 1) << 2;
     const uint8_t val = static_cast<uint8_t>(value) << i2;
     if (i2 == 0) {
       data_[i1] = val;
@@ -66,7 +66,7 @@ public:
   void ReSize(data_size_t num_data) override {
     if (num_data_ != num_data) {
       num_data_ = num_data;
-      const int len = (num_data_ + 1) / 2;
+      const data_size_t len = (num_data_ + 1) / 2;
       data_.resize(len);
     }
   }
@@ -246,8 +246,8 @@ public:
 
   void FinishLoad() override {
     if (buf_.empty()) { return; }
-    int len = (num_data_ + 1) / 2;
-    for (int i = 0; i < len; ++i) {
+    data_size_t len = (num_data_ + 1) / 2;
+    for (data_size_t i = 0; i < len; ++i) {
       data_[i] |= buf_[i];
     }
     buf_.clear();

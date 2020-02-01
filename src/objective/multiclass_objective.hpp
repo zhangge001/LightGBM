@@ -65,7 +65,7 @@ class MulticlassSoftmax: public ObjectiveFunction {
       }
     }
     if (weights_ == nullptr) {
-      sum_weight = num_data_;
+      sum_weight = static_cast<double>(num_data_);
     }
     if (Network::num_machines() > 1) {
       sum_weight = Network::GlobalSyncUpBySum(sum_weight);

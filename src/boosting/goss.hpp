@@ -72,7 +72,7 @@ class GOSS: public GBDT {
     is_use_subset_ = false;
     if (config_->top_rate + config_->other_rate <= 0.5) {
       auto bag_data_cnt = static_cast<data_size_t>((config_->top_rate + config_->other_rate) * num_data_);
-      bag_data_cnt = std::max(1, bag_data_cnt);
+      bag_data_cnt = std::max<data_size_t>(1, bag_data_cnt);
       tmp_subset_.reset(new Dataset(bag_data_cnt));
       tmp_subset_->CopyFeatureMapperFrom(train_data_);
       is_use_subset_ = true;
@@ -94,8 +94,10 @@ class GOSS: public GBDT {
     }
     data_size_t top_k = static_cast<data_size_t>(cnt * config_->top_rate);
     data_size_t other_k = static_cast<data_size_t>(cnt * config_->other_rate);
-    top_k = std::max(1, top_k);
-    ArrayArgs<score_t>::ArgMaxAtK(&tmp_gradients, 0, static_cast<int>(tmp_gradients.size()), top_k - 1);
+    top_k = std::max<data_size_t>(1, top_k);
+    ArrayArgs<score_t>::ArgMaxAtK<data_size_t>(
+        &tmp_gradients, 0, static_cast<data_size_t>(tmp_gradients.size()),
+        top_k - 1);
     score_t threshold = tmp_gradients[top_k - 1];
 
     score_t multiply = static_cast<score_t>(cnt - top_k) / other_k;
@@ -137,8 +139,9 @@ class GOSS: public GBDT {
     if (iter < static_cast<int>(1.0f / config_->learning_rate)) { return; }
 
     const data_size_t min_inner_size = 128;
-    const int n_block = std::min(
-        num_threads_, (num_data_ + min_inner_size - 1) / min_inner_size);
+    const int n_block = std::min<int>(
+        num_threads_,
+        static_cast<int>((num_data_ + min_inner_size - 1) / min_inner_size));
     data_size_t inner_size = SIZE_ALIGNED((num_data_ + n_block - 1) / n_block);
     OMP_INIT_EX();
     #pragma omp parallel for schedule(static, 1)

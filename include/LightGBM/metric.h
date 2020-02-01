@@ -78,8 +78,8 @@ class DCGCalculator {
   * \param num_data Number of data
   * \return The DCG score
   */
-  static double CalDCGAtK(data_size_t k, const label_t* label,
-    const double* score, data_size_t num_data);
+  static double CalDCGAtK(int k, const label_t* label, const double* score,
+                          int num_data);
 
   /*!
   * \brief Calculate the DCG score at multi position
@@ -89,9 +89,9 @@ class DCGCalculator {
   * \param num_data Number of data
   * \param out Output result
   */
-  static void CalDCG(const std::vector<data_size_t>& ks,
-    const label_t* label, const double* score,
-    data_size_t num_data, std::vector<double>* out);
+  static void CalDCG(const std::vector<int>& ks,
+    const label_t* label, const double* score, int num_data,
+                     std::vector<double>* out);
 
   /*!
   * \brief Calculate the Max DCG score at position k
@@ -100,8 +100,7 @@ class DCGCalculator {
   * \param num_data Number of data
   * \return The max DCG score
   */
-  static double CalMaxDCGAtK(data_size_t k,
-    const label_t* label, data_size_t num_data);
+  static double CalMaxDCGAtK(int k, const label_t* label, int num_data);
 
   /*!
   * \brief Check the label range for NDCG and lambdarank
@@ -117,15 +116,15 @@ class DCGCalculator {
   * \param num_data Number of data
   * \param out Output result
   */
-  static void CalMaxDCG(const std::vector<data_size_t>& ks,
-    const label_t* label, data_size_t num_data, std::vector<double>* out);
+  static void CalMaxDCG(const std::vector<int>& ks, const label_t* label,
+                        int num_data, std::vector<double>* out);
 
   /*!
   * \brief Get discount score of position k
   * \param k The position
   * \return The discount of this position
   */
-  inline static double GetDiscount(data_size_t k) { return discount_[k]; }
+  inline static double GetDiscount(int k) { return discount_[k]; }
 
  private:
   /*! \brief store gains for different label */
@@ -133,7 +132,7 @@ class DCGCalculator {
   /*! \brief store discount score for different position */
   static std::vector<double> discount_;
   /*! \brief max position for eval */
-  static const data_size_t kMaxPosition;
+  static const int kMaxPosition;
 };
 
 

@@ -44,7 +44,7 @@ class DataPartition {
     leaf_begin_.resize(num_leaves_);
     leaf_count_.resize(num_leaves_);
   }
-  void ResetNumData(int num_data) {
+  void ResetNumData(data_size_t num_data) {
     num_data_ = num_data;
     indices_.resize(num_data_);
     temp_left_indices_.resize(num_data_);
@@ -117,8 +117,9 @@ class DataPartition {
     const data_size_t begin = leaf_begin_[leaf];
     const data_size_t cnt = leaf_count_[leaf];
 
-    const int nblock =
-        std::min(num_threads_, (cnt + min_inner_size - 1) / min_inner_size);
+    const int nblock = std::min<int>(
+        num_threads_,
+        static_cast<int>((cnt + min_inner_size - 1) / min_inner_size));
     data_size_t inner_size = SIZE_ALIGNED((cnt + nblock - 1) / nblock);
     auto left_start = indices_.data() + begin;
     global_timer.Start("DataPartition::Split.MT");

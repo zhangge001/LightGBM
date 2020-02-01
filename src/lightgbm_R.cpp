@@ -115,11 +115,11 @@ LGBM_SE LGBM_DatasetGetSubset_R(LGBM_SE handle,
   LGBM_SE call_state) {
   R_API_BEGIN();
   int len = R_AS_INT(len_used_row_indices);
-  std::vector<int> idxvec(len);
+  std::vector<int64_t> idxvec(len);
   // convert from one-based to  zero-based index
 #pragma omp parallel for schedule(static)
   for (int i = 0; i < len; ++i) {
-    idxvec[i] = R_INT_PTR(used_row_indices)[i] - 1;
+    idxvec[i] = R_INT64_PTR(used_row_indices)[i] - 1;
   }
   DatasetHandle res = nullptr;
   CHECK_CALL(LGBM_DatasetGetSubset(R_GET_PTR(handle),
@@ -220,7 +220,7 @@ LGBM_SE LGBM_DatasetGetField_R(LGBM_SE handle,
   LGBM_SE call_state) {
   R_API_BEGIN();
   const char* name = R_CHAR_PTR(field_name);
-  int out_len = 0;
+  int64_t out_len = 0;
   int out_type = 0;
   const void* res;
   CHECK_CALL(LGBM_DatasetGetField(R_GET_PTR(handle), name, &out_len, &res, &out_type));
@@ -254,7 +254,7 @@ LGBM_SE LGBM_DatasetGetFieldSize_R(LGBM_SE handle,
   LGBM_SE call_state) {
   R_API_BEGIN();
   const char* name = R_CHAR_PTR(field_name);
-  int out_len = 0;
+  int64_t out_len = 0;
   int out_type = 0;
   const void* res;
   CHECK_CALL(LGBM_DatasetGetField(R_GET_PTR(handle), name, &out_len, &res, &out_type));

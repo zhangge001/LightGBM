@@ -271,9 +271,10 @@ Dataset* DatasetLoader::LoadFromFileAlignWithOtherDataset(const char* filename, 
   return dataset.release();
 }
 
-Dataset* DatasetLoader::LoadFromBinFile(const char* data_filename, const char* bin_filename,
-                                        int rank, int num_machines, int* num_global_data,
-                                        std::vector<data_size_t>* used_data_indices) {
+Dataset* DatasetLoader::LoadFromBinFile(
+    const char* data_filename, const char* bin_filename, int rank,
+    int num_machines, data_size_t* num_global_data,
+    std::vector<data_size_t>* used_data_indices) {
   auto dataset = std::unique_ptr<Dataset>(new Dataset());
   auto reader = VirtualFileReader::Make(bin_filename);
   dataset->data_filename_ = data_filename;
@@ -594,7 +595,7 @@ Dataset* DatasetLoader::CostructFromSampleData(double** sample_values,
   std::string forced_bins_path = config_.forcedbins_filename;
   std::vector<std::vector<double>> forced_bin_bounds = DatasetLoader::GetForcedBins(forced_bins_path, num_col, categorical_features_);
 
-  const data_size_t filter_cnt = static_cast<data_size_t>(
+  const int filter_cnt = static_cast<int>(
     static_cast<double>(config_.min_data_in_leaf * total_sample_size) / num_data);
   if (Network::num_machines() == 1) {
     // if only one machine, find bin locally
@@ -755,7 +756,7 @@ void DatasetLoader::CheckDataset(const Dataset* dataset) {
 }
 
 std::vector<std::string> DatasetLoader::LoadTextDataToMemory(const char* filename, const Metadata& metadata,
-                                                             int rank, int num_machines, int* num_global_data,
+                                                             int rank, int num_machines, data_size_t* num_global_data,
                                                              std::vector<data_size_t>* used_data_indices) {
   TextReader<data_size_t> text_reader(filename, config_.header, config_.file_load_progress_interval_bytes);
   used_data_indices->clear();
@@ -816,9 +817,9 @@ std::vector<std::string> DatasetLoader::SampleTextDataFromMemory(const std::vect
   return out;
 }
 
-std::vector<std::string> DatasetLoader::SampleTextDataFromFile(const char* filename, const Metadata& metadata,
-                                                               int rank, int num_machines, int* num_global_data,
-                                                               std::vector<data_size_t>* used_data_indices) {
+std::vector<std::string> DatasetLoader::SampleTextDataFromFile(
+    const char* filename, const Metadata& metadata, int rank, int num_machines,
+    data_size_t* num_global_data, std::vector<data_size_t>* used_data_indices) {
   const data_size_t sample_cnt = static_cast<data_size_t>(config_.bin_construct_sample_cnt);
   TextReader<data_size_t> text_reader(filename, config_.header, config_.file_load_progress_interval_bytes);
   std::vector<std::string> out_data;
@@ -922,7 +923,7 @@ void DatasetLoader::ConstructBinMappersFromTextData(int rank, int num_machines,
   }
   dataset->set_feature_names(feature_names_);
   std::vector<std::unique_ptr<BinMapper>> bin_mappers(dataset->num_total_features_);
-  const data_size_t filter_cnt = static_cast<data_size_t>(
+  const int filter_cnt = static_cast<int>(
     static_cast<double>(config_.min_data_in_leaf* sample_data.size()) / dataset->num_data_);
   // start find bins
   if (num_machines == 1) {

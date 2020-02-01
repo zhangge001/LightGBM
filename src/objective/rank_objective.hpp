@@ -60,9 +60,9 @@ class LambdarankNDCG: public ObjectiveFunction {
     inverse_max_dcgs_.resize(num_queries_);
 #pragma omp parallel for schedule(static)
     for (data_size_t i = 0; i < num_queries_; ++i) {
-      inverse_max_dcgs_[i] = DCGCalculator::CalMaxDCGAtK(optimize_pos_at_,
-        label_ + query_boundaries_[i],
-        query_boundaries_[i + 1] - query_boundaries_[i]);
+      inverse_max_dcgs_[i] = DCGCalculator::CalMaxDCGAtK(
+          optimize_pos_at_, label_ + query_boundaries_[i],
+          static_cast<int>(query_boundaries_[i + 1] - query_boundaries_[i]));
 
       if (inverse_max_dcgs_[i] > 0.0) {
         inverse_max_dcgs_[i] = 1.0f / inverse_max_dcgs_[i];
@@ -84,8 +84,8 @@ class LambdarankNDCG: public ObjectiveFunction {
               score_t* lambdas, score_t* hessians, data_size_t query_id) const {
     // get doc boundary for current query
     const data_size_t start = query_boundaries_[query_id];
-    const data_size_t cnt =
-      query_boundaries_[query_id + 1] - query_boundaries_[query_id];
+    const int cnt = static_cast<int>(query_boundaries_[query_id + 1] -
+                                     query_boundaries_[query_id]);
     // get max DCG on current query
     const double inverse_max_dcg = inverse_max_dcgs_[query_id];
     // add pointers with offset
@@ -94,28 +94,28 @@ class LambdarankNDCG: public ObjectiveFunction {
     lambdas += start;
     hessians += start;
     // initialize with zero
-    for (data_size_t i = 0; i < cnt; ++i) {
+    for (int i = 0; i < cnt; ++i) {
       lambdas[i] = 0.0f;
       hessians[i] = 0.0f;
     }
     // get sorted indices for scores
-    std::vector<data_size_t> sorted_idx;
-    for (data_size_t i = 0; i < cnt; ++i) {
+    std::vector<int> sorted_idx;
+    for (int i = 0; i < cnt; ++i) {
       sorted_idx.emplace_back(i);
     }
     std::stable_sort(sorted_idx.begin(), sorted_idx.end(),
-                     [score](data_size_t a, data_size_t b) { return score[a] > score[b]; });
+                     [score](int a, int b) { return score[a] > score[b]; });
     // get best and worst score
     const double best_score = score[sorted_idx[0]];
-    data_size_t worst_idx = cnt - 1;
+    int worst_idx = cnt - 1;
     if (worst_idx > 0 && score[sorted_idx[worst_idx]] == kMinScore) {
       worst_idx -= 1;
     }
     const double worst_score = score[sorted_idx[worst_idx]];
     double sum_lambdas = 0.0;
     // start accmulate lambdas by pairs
-    for (data_size_t i = 0; i < cnt; ++i) {
-      const data_size_t high = sorted_idx[i];
+    for (int i = 0; i < cnt; ++i) {
+      const int high = sorted_idx[i];
       const int high_label = static_cast<int>(label[high]);
       const double high_score = score[high];
       if (high_score == kMinScore) { continue; }
@@ -123,11 +123,11 @@ class LambdarankNDCG: public ObjectiveFunction {
       const double high_discount = DCGCalculator::GetDiscount(i);
       double high_sum_lambda = 0.0;
       double high_sum_hessian = 0.0;
-      for (data_size_t j = 0; j < cnt; ++j) {
+      for (int j = 0; j < cnt; ++j) {
         // skip same data
         if (i == j) { continue; }
 
-        const data_size_t low = sorted_idx[j];
+        const int low = sorted_idx[j];
         const int low_label = static_cast<int>(label[low]);
         const double low_score = score[low];
         // only consider pair with different label
@@ -166,14 +166,14 @@ class LambdarankNDCG: public ObjectiveFunction {
     }
     if (norm_ && sum_lambdas > 0) {
       double norm_factor = std::log2(1 + sum_lambdas) / sum_lambdas;
-      for (data_size_t i = 0; i < cnt; ++i) {
+      for (int i = 0; i < cnt; ++i) {
         lambdas[i] = static_cast<score_t>(lambdas[i] * norm_factor);
         hessians[i] = static_cast<score_t>(hessians[i] * norm_factor);
       }
     }
     // if need weights
     if (weights_ != nullptr) {
-      for (data_size_t i = 0; i < cnt; ++i) {
+      for (int i = 0; i < cnt; ++i) {
         lambdas[i] = static_cast<score_t>(lambdas[i] * weights_[start + i]);
         hessians[i] = static_cast<score_t>(hessians[i] * weights_[start + i]);
       }

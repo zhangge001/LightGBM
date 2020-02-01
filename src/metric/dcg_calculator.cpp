@@ -14,7 +14,7 @@ namespace LightGBM {
 /*! \brief Declaration for some static members */
 std::vector<double> DCGCalculator::label_gain_;
 std::vector<double> DCGCalculator::discount_;
-const data_size_t DCGCalculator::kMaxPosition = 10000;
+const int DCGCalculator::kMaxPosition = 10000;
 
 
 void DCGCalculator::DefaultEvalAt(std::vector<int>* eval_at) {
@@ -45,23 +45,23 @@ void DCGCalculator::Init(const std::vector<double>& input_label_gain) {
     label_gain_[i] = static_cast<double>(input_label_gain[i]);
   }
   discount_.resize(kMaxPosition);
-  for (data_size_t i = 0; i < kMaxPosition; ++i) {
+  for (int i = 0; i < kMaxPosition; ++i) {
     discount_[i] = 1.0 / std::log2(2.0 + i);
   }
 }
 
-double DCGCalculator::CalMaxDCGAtK(data_size_t k, const label_t* label, data_size_t num_data) {
+double DCGCalculator::CalMaxDCGAtK(int k, const label_t* label, int num_data) {
   double ret = 0.0f;
   // counts for all labels
-  std::vector<data_size_t> label_cnt(label_gain_.size(), 0);
-  for (data_size_t i = 0; i < num_data; ++i) {
+  std::vector<int> label_cnt(label_gain_.size(), 0);
+  for (int i = 0; i < num_data; ++i) {
     ++label_cnt[static_cast<int>(label[i])];
   }
   int top_label = static_cast<int>(label_gain_.size()) - 1;
 
   if (k > num_data) { k = num_data; }
   //  start from top label, and accumulate DCG
-  for (data_size_t j = 0; j < k; ++j) {
+  for (int j = 0; j < k; ++j) {
     while (top_label > 0 && label_cnt[top_label] <= 0) {
       top_label -= 1;
     }
@@ -74,23 +74,23 @@ double DCGCalculator::CalMaxDCGAtK(data_size_t k, const label_t* label, data_siz
   return ret;
 }
 
-void DCGCalculator::CalMaxDCG(const std::vector<data_size_t>& ks,
+void DCGCalculator::CalMaxDCG(const std::vector<int>& ks,
                               const label_t* label,
-                              data_size_t num_data,
+                              int num_data,
                               std::vector<double>* out) {
-  std::vector<data_size_t> label_cnt(label_gain_.size(), 0);
+  std::vector<int> label_cnt(label_gain_.size(), 0);
   // counts for all labels
-  for (data_size_t i = 0; i < num_data; ++i) {
+  for (int i = 0; i < num_data; ++i) {
     ++label_cnt[static_cast<int>(label[i])];
   }
   double cur_result = 0.0f;
-  data_size_t cur_left = 0;
+  int cur_left = 0;
   int top_label = static_cast<int>(label_gain_.size()) - 1;
   // calculate k Max DCG by one pass
   for (size_t i = 0; i < ks.size(); ++i) {
-    data_size_t cur_k = ks[i];
+    int cur_k = ks[i];
     if (cur_k > num_data) { cur_k = num_data; }
-    for (data_size_t j = cur_left; j < cur_k; ++j) {
+    for (int j = cur_left; j < cur_k; ++j) {
       while (top_label > 0 && label_cnt[top_label] <= 0) {
         top_label -= 1;
       }
@@ -106,44 +106,44 @@ void DCGCalculator::CalMaxDCG(const std::vector<data_size_t>& ks,
 }
 
 
-double DCGCalculator::CalDCGAtK(data_size_t k, const label_t* label,
-                                const double* score, data_size_t num_data) {
+double DCGCalculator::CalDCGAtK(int k, const label_t* label,
+                                const double* score, int num_data) {
   // get sorted indices by score
-  std::vector<data_size_t> sorted_idx(num_data);
-  for (data_size_t i = 0; i < num_data; ++i) {
+  std::vector<int> sorted_idx(num_data);
+  for (int i = 0; i < num_data; ++i) {
     sorted_idx[i] = i;
   }
   std::stable_sort(sorted_idx.begin(), sorted_idx.end(),
-                   [score](data_size_t a, data_size_t b) {return score[a] > score[b]; });
+                   [score](int a, int b) {return score[a] > score[b]; });
 
   if (k > num_data) { k = num_data; }
   double dcg = 0.0f;
   // calculate dcg
-  for (data_size_t i = 0; i < k; ++i) {
-    data_size_t idx = sorted_idx[i];
+  for (int i = 0; i < k; ++i) {
+    int idx = sorted_idx[i];
     dcg += label_gain_[static_cast<int>(label[idx])] * discount_[i];
   }
   return dcg;
 }
 
-void DCGCalculator::CalDCG(const std::vector<data_size_t>& ks, const label_t* label,
-                           const double * score, data_size_t num_data, std::vector<double>* out) {
+void DCGCalculator::CalDCG(const std::vector<int>& ks, const label_t* label,
+                           const double * score, int num_data, std::vector<double>* out) {
   // get sorted indices by score
-  std::vector<data_size_t> sorted_idx(num_data);
-  for (data_size_t i = 0; i < num_data; ++i) {
+  std::vector<int> sorted_idx(num_data);
+  for (int i = 0; i < num_data; ++i) {
     sorted_idx[i] = i;
   }
   std::stable_sort(sorted_idx.begin(), sorted_idx.end(),
-                   [score](data_size_t a, data_size_t b) {return score[a] > score[b]; });
+                   [score](int a, int b) {return score[a] > score[b]; });
 
   double cur_result = 0.0f;
-  data_size_t cur_left = 0;
+  int cur_left = 0;
   // calculate multi dcg by one pass
   for (size_t i = 0; i < ks.size(); ++i) {
-    data_size_t cur_k = ks[i];
+    int cur_k = ks[i];
     if (cur_k > num_data) { cur_k = num_data; }
-    for (data_size_t j = cur_left; j < cur_k; ++j) {
-      data_size_t idx = sorted_idx[j];
+    for (int j = cur_left; j < cur_k; ++j) {
+      int idx = sorted_idx[j];
       cur_result += label_gain_[static_cast<int>(label[idx])] * discount_[j];
     }
     (*out)[i] = cur_result;
@@ -152,7 +152,7 @@ void DCGCalculator::CalDCG(const std::vector<data_size_t>& ks, const label_t* la
 }
 
 void DCGCalculator::CheckLabel(const label_t* label, data_size_t num_data) {
-  for (data_size_t i = 0; i < num_data; ++i) {
+  for (int i = 0; i < num_data; ++i) {
     label_t delta = std::fabs(label[i] - static_cast<int>(label[i]));
     if (delta > kEpsilon) {
       Log::Fatal("label should be int type (met %f) for ranking task,\n"

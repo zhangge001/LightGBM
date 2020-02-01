@@ -65,9 +65,10 @@ class NDCGMetric:public Metric {
     #pragma omp parallel for schedule(static)
     for (data_size_t i = 0; i < num_queries_; ++i) {
       inverse_max_dcgs_[i].resize(eval_at_.size(), 0.0f);
-      DCGCalculator::CalMaxDCG(eval_at_, label_ + query_boundaries_[i],
-                               query_boundaries_[i + 1] - query_boundaries_[i],
-                               &inverse_max_dcgs_[i]);
+      DCGCalculator::CalMaxDCG(
+          eval_at_, label_ + query_boundaries_[i],
+          static_cast<int>(query_boundaries_[i + 1] - query_boundaries_[i]),
+          &inverse_max_dcgs_[i]);
       for (size_t j = 0; j < inverse_max_dcgs_[i].size(); ++j) {
         if (inverse_max_dcgs_[i][j] > 0.0f) {
           inverse_max_dcgs_[i][j] = 1.0f / inverse_max_dcgs_[i][j];
@@ -108,7 +109,7 @@ class NDCGMetric:public Metric {
           // calculate DCG
           DCGCalculator::CalDCG(eval_at_, label_ + query_boundaries_[i],
                                 score + query_boundaries_[i],
-                                query_boundaries_[i + 1] - query_boundaries_[i], &tmp_dcg);
+                                static_cast<int>(query_boundaries_[i + 1] - query_boundaries_[i]), &tmp_dcg);
           // calculate NDCG
           for (size_t j = 0; j < eval_at_.size(); ++j) {
             result_buffer_[tid][j] += tmp_dcg[j] * inverse_max_dcgs_[i][j];
@@ -126,9 +127,11 @@ class NDCGMetric:public Metric {
           }
         } else {
           // calculate DCG
-          DCGCalculator::CalDCG(eval_at_, label_ + query_boundaries_[i],
-                                score + query_boundaries_[i],
-                                query_boundaries_[i + 1] - query_boundaries_[i], &tmp_dcg);
+          DCGCalculator::CalDCG(
+              eval_at_, label_ + query_boundaries_[i],
+              score + query_boundaries_[i],
+              static_cast<int>(query_boundaries_[i + 1] - query_boundaries_[i]),
+              &tmp_dcg);
           // calculate NDCG
           for (size_t j = 0; j < eval_at_.size(); ++j) {
             result_buffer_[tid][j] += tmp_dcg[j] * inverse_max_dcgs_[i][j] * query_weights_[i];
@@ -163,7 +166,7 @@ class NDCGMetric:public Metric {
   /*! \brief Sum weights of queries */
   double sum_query_weights_;
   /*! \brief Evaluate position of NDCG */
-  std::vector<data_size_t> eval_at_;
+  std::vector<int> eval_at_;
   /*! \brief Cache the inverse max dcg for all queries */
   std::vector<std::vector<double>> inverse_max_dcgs_;
   /*! \brief Number of threads */

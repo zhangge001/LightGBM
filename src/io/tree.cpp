@@ -50,7 +50,9 @@ Tree::~Tree() {
 
 int Tree::Split(int leaf, int feature, int real_feature, uint32_t threshold_bin,
                 double threshold_double, double left_value, double right_value,
-                int left_cnt, int right_cnt, double left_weight, double right_weight, float gain, MissingType missing_type, bool default_left) {
+                data_size_t left_cnt, data_size_t right_cnt, double left_weight,
+                double right_weight, float gain, MissingType missing_type,
+                bool default_left) {
   Split(leaf, feature, real_feature, left_value, right_value, left_cnt, right_cnt, left_weight, right_weight, gain);
   int new_node_idx = num_leaves_ - 1;
   decision_type_[new_node_idx] = 0;
@@ -226,14 +228,26 @@ std::string Tree::ToString() const {
     << Common::ArrayToString(leaf_value_, num_leaves_) << '\n';
   str_buf << "leaf_weight="
     << Common::ArrayToString(leaf_weight_, num_leaves_) << '\n';
-  str_buf << "leaf_count="
-    << Common::ArrayToStringFast(leaf_count_, num_leaves_) << '\n';
+  if (sizeof(data_size_t) <= 4) {
+    str_buf << "leaf_count="
+            << Common::ArrayToStringFast(leaf_count_, num_leaves_) << '\n';
+  } else {
+    str_buf << "leaf_count="
+            << Common::ArrayToString(leaf_count_, num_leaves_) << '\n';
+  }
   str_buf << "internal_value="
     << Common::ArrayToStringFast(internal_value_, num_leaves_ - 1) << '\n';
   str_buf << "internal_weight="
     << Common::ArrayToStringFast(internal_weight_, num_leaves_ - 1) << '\n';
-  str_buf << "internal_count="
-    << Common::ArrayToStringFast(internal_count_, num_leaves_ - 1) << '\n';
+  if (sizeof(data_size_t) <= 4) {
+    str_buf << "internal_count="
+            << Common::ArrayToStringFast(internal_count_, num_leaves_ - 1)
+            << '\n';
+  } else {
+    str_buf << "internal_count="
+            << Common::ArrayToString(internal_count_, num_leaves_ - 1)
+            << '\n';
+  }
   if (num_cat_ > 0) {
     str_buf << "cat_boundaries="
       << Common::ArrayToStringFast(cat_boundaries_, num_cat_ + 1) << '\n';
@@ -555,7 +569,8 @@ Tree::Tree(const char* str, size_t* used_len) {
   }
 
   if (key_vals.count("internal_count")) {
-    internal_count_ = Common::StringToArrayFast<int>(key_vals["internal_count"], num_leaves_ - 1);
+    internal_count_ = Common::StringToArrayFast<data_size_t>(
+        key_vals["internal_count"], num_leaves_ - 1);
   } else {
     internal_count_.resize(num_leaves_ - 1);
   }
@@ -579,7 +594,7 @@ Tree::Tree(const char* str, size_t* used_len) {
   }
 
   if (key_vals.count("leaf_count")) {
-    leaf_count_ = Common::StringToArrayFast<int>(key_vals["leaf_count"], num_leaves_);
+    leaf_count_ = Common::StringToArrayFast<data_size_t>(key_vals["leaf_count"], num_leaves_);
   } else {
     leaf_count_.resize(num_leaves_);
   }
@@ -688,7 +703,7 @@ void Tree::TreeSHAP(const double *feature_values, double *phi,
   } else {
     const int hot_index = Decision(feature_values[split_feature_[node]], node);
     const int cold_index = (hot_index == left_child_[node] ? right_child_[node] : left_child_[node]);
-    const double w = data_count(node);
+    const double w = static_cast<double>(data_count(node));
     const double hot_zero_fraction = data_count(hot_index) / w;
     const double cold_zero_fraction = data_count(cold_index) / w;
     double incoming_zero_fraction = 1;
@@ -717,7 +732,7 @@ void Tree::TreeSHAP(const double *feature_values, double *phi,
 
 double Tree::ExpectedValue() const {
   if (num_leaves_ == 1) return LeafOutput(0);
-  const double total_count = internal_count_[0];
+  const double total_count = static_cast<double>(internal_count_[0]);
   double exp_value = 0.0;
   for (int i = 0; i < num_leaves(); ++i) {
     exp_value += (leaf_count_[i] / total_count)*LeafOutput(i);

@@ -473,7 +473,7 @@ class GBDT : public GBDTBase {
   /*! \brief Number of class */
   int num_class_;
   /*! \brief Index of label column */
-  data_size_t label_idx_;
+  int label_idx_;
   /*! \brief number of used model */
   int num_iteration_for_pred_;
   /*! \brief Shrinkage rate for one iteration */

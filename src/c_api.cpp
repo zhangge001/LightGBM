@@ -915,8 +915,8 @@ int LGBM_DatasetCreateFromCSC(const void* col_ptr,
 
 int LGBM_DatasetGetSubset(
   const DatasetHandle handle,
-  const int32_t* used_row_indices,
-  int32_t num_used_row_indices,
+  const data_size_t* used_row_indices,
+  data_size_t num_used_row_indices,
   const char* parameters,
   DatasetHandle* out) {
   API_BEGIN();
@@ -928,9 +928,9 @@ int LGBM_DatasetGetSubset(
   }
   auto full_dataset = reinterpret_cast<const Dataset*>(handle);
   CHECK(num_used_row_indices > 0);
-  const int32_t lower = 0;
-  const int32_t upper = full_dataset->num_data() - 1;
-  Common::CheckElementsIntervalClosed(used_row_indices, lower, upper, num_used_row_indices, "Used indices of subset");
+  const data_size_t lower = 0;
+  const data_size_t upper = full_dataset->num_data() - 1;
+  Common::CheckElementsIntervalClosed<data_size_t>(used_row_indices, lower, upper, num_used_row_indices, "Used indices of subset");
   if (!std::is_sorted(used_row_indices, used_row_indices + num_used_row_indices)) {
     Log::Fatal("used_row_indices should be sorted in Subset");
   }
@@ -1003,7 +1003,7 @@ int LGBM_DatasetSetField(DatasetHandle handle,
   if (type == C_API_DTYPE_FLOAT32) {
     is_success = dataset->SetFloatField(field_name, reinterpret_cast<const float*>(field_data), static_cast<int32_t>(num_element));
   } else if (type == C_API_DTYPE_INT32) {
-    is_success = dataset->SetIntField(field_name, reinterpret_cast<const int*>(field_data), static_cast<int32_t>(num_element));
+    is_success = dataset->SetIntField(field_name, reinterpret_cast<const data_size_t*>(field_data), static_cast<int32_t>(num_element));
   } else if (type == C_API_DTYPE_FLOAT64) {
     is_success = dataset->SetDoubleField(field_name, reinterpret_cast<const double*>(field_data), static_cast<int32_t>(num_element));
   }
@@ -1013,7 +1013,7 @@ int LGBM_DatasetSetField(DatasetHandle handle,
 
 int LGBM_DatasetGetField(DatasetHandle handle,
                          const char* field_name,
-                         int* out_len,
+                         data_size_t* out_len,
                          const void** out_ptr,
                          int* out_type) {
   API_BEGIN();
@@ -1022,7 +1022,7 @@ int LGBM_DatasetGetField(DatasetHandle handle,
   if (dataset->GetFloatField(field_name, out_len, reinterpret_cast<const float**>(out_ptr))) {
     *out_type = C_API_DTYPE_FLOAT32;
     is_success = true;
-  } else if (dataset->GetIntField(field_name, out_len, reinterpret_cast<const int**>(out_ptr))) {
+  } else if (dataset->GetIntField(field_name, out_len, reinterpret_cast<const data_size_t**>(out_ptr))) {
     *out_type = C_API_DTYPE_INT32;
     is_success = true;
   } else if (dataset->GetDoubleField(field_name, out_len, reinterpret_cast<const double**>(out_ptr))) {

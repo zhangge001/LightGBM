@@ -96,7 +96,6 @@ std::vector<std::vector<int>> FindGroups(const std::vector<std::unique_ptr<BinMa
                                          const int* num_per_col,
                                          int num_sample_col,
                                          data_size_t total_sample_cnt,
-                                         data_size_t num_data,
                                          bool is_use_gpu,
                                          std::vector<int8_t>* multi_val_group) {
   const int max_search_group = 100;
@@ -104,7 +103,7 @@ std::vector<std::vector<int>> FindGroups(const std::vector<std::unique_ptr<BinMa
   const data_size_t single_val_max_conflict_cnt = static_cast<data_size_t>(total_sample_cnt / 10000);
   multi_val_group->clear();
 
-  Random rand(num_data);
+  Random rand(num_sample_col);
   std::vector<std::vector<int>> features_in_group;
   std::vector<std::vector<bool>> conflict_marks;
   std::vector<data_size_t> group_used_row_cnt;
@@ -135,7 +134,7 @@ std::vector<std::vector<int>> FindGroups(const std::vector<std::unique_ptr<BinMa
       }
     }
     int best_gid = -1;
-    int best_conflict_cnt = -1;
+    data_size_t best_conflict_cnt = -1;
     for (auto gid : search_groups) {
       const data_size_t rest_max_cnt = single_val_max_conflict_cnt - group_total_data_cnt[gid] + group_used_row_cnt[gid];
       const data_size_t cnt = is_filtered_feature ? 0 : GetConfilctCount(conflict_marks[gid], sample_indices[fidx], num_per_col[fidx], rest_max_cnt);
@@ -193,7 +192,8 @@ std::vector<std::vector<int>> FindGroups(const std::vector<std::unique_ptr<BinMa
     for (auto fidx : second_round_features) {
       features_in_group.back().push_back(fidx);
       if (!is_multi_val) {
-        const int rest_max_cnt = single_val_max_conflict_cnt - conflict_cnt;
+        const data_size_t rest_max_cnt =
+            single_val_max_conflict_cnt - conflict_cnt;
         const auto cnt = GetConfilctCount(conflict_marks.back(), sample_indices[fidx], num_per_col[fidx], rest_max_cnt);
         conflict_cnt += cnt;
         if (cnt < 0 || conflict_cnt > single_val_max_conflict_cnt) {
@@ -215,7 +215,6 @@ std::vector<std::vector<int>> FastFeatureBundling(const std::vector<std::unique_
                                                   int num_sample_col,
                                                   data_size_t total_sample_cnt,
                                                   const std::vector<int>& used_features,
-                                                  data_size_t num_data,
                                                   bool is_use_gpu,
                                                   std::vector<int8_t>* multi_val_group) {
   Common::FunctionTimer fun_timer("Dataset::FastFeatureBundling", global_timer);
@@ -263,8 +262,8 @@ std::vector<std::vector<int>> FastFeatureBundling(const std::vector<std::unique_
     }
   }
   std::vector<int8_t> group_is_multi_val, group_is_multi_val2;
-  auto features_in_group = FindGroups(bin_mappers, used_features, sample_indices, tmp_num_per_col.data(), num_sample_col, total_sample_cnt, num_data, is_use_gpu, &group_is_multi_val);
-  auto group2 = FindGroups(bin_mappers, feature_order_by_cnt, sample_indices, tmp_num_per_col.data(), num_sample_col, total_sample_cnt, num_data, is_use_gpu, &group_is_multi_val2);
+  auto features_in_group = FindGroups(bin_mappers, used_features, sample_indices, tmp_num_per_col.data(), num_sample_col, total_sample_cnt, is_use_gpu, &group_is_multi_val);
+  auto group2 = FindGroups(bin_mappers, feature_order_by_cnt, sample_indices, tmp_num_per_col.data(), num_sample_col, total_sample_cnt, is_use_gpu, &group_is_multi_val2);
 
   if (features_in_group.size() > group2.size()) {
     features_in_group = group2;
@@ -272,7 +271,7 @@ std::vector<std::vector<int>> FastFeatureBundling(const std::vector<std::unique_
   }
   // shuffle groups
   int num_group = static_cast<int>(features_in_group.size());
-  Random tmp_rand(num_data);
+  Random tmp_rand(num_group);
   for (int i = 0; i < num_group - 1; ++i) {
     int j = tmp_rand.NextShort(i + 1, num_group);
     std::swap(features_in_group[i], features_in_group[j]);
@@ -311,7 +310,7 @@ void Dataset::Construct(
   if (io_config.enable_bundle && !used_features.empty()) {
     features_in_group = FastFeatureBundling(*bin_mappers,
                                             sample_non_zero_indices, sample_values, num_per_col, num_sample_col, static_cast<data_size_t>(total_sample_cnt),
-                                            used_features, num_data_, io_config.device_type == std::string("gpu"), &group_is_multi_val);
+                                            used_features, io_config.device_type == std::string("gpu"), &group_is_multi_val);
   }
 
   num_features_ = 0;
@@ -481,7 +480,9 @@ void PushDataToMultiValBin(int num_threads, data_size_t num_data, const std::vec
   const std::vector<uint32_t> offsets, std::vector<std::vector<std::unique_ptr<BinIterator>>>& iters, MultiValBin* ret) {
   Common::FunctionTimer fun_time("Dataset::PushDataToMultiValBin", global_timer);
   const data_size_t min_block_size = 4096;
-  const int n_block = std::min(num_threads, (num_data + min_block_size - 1) / min_block_size);
+  const int n_block = std::min<int>(
+      num_threads,
+      static_cast<int>((num_data + min_block_size - 1) / min_block_size));
   const data_size_t block_size = (num_data + n_block - 1) / n_block;
   if (ret->IsSparse()) {
     #pragma omp parallel for schedule(static)
@@ -828,7 +829,7 @@ bool Dataset::SetDoubleField(const char* field_name, const double* field_data, d
   return true;
 }
 
-bool Dataset::SetIntField(const char* field_name, const int* field_data, data_size_t num_element) {
+bool Dataset::SetIntField(const char* field_name, const data_size_t* field_data, data_size_t num_element) {
   std::string name(field_name);
   name = Common::Trim(name);
   if (name == std::string("query") || name == std::string("group")) {
@@ -877,7 +878,8 @@ bool Dataset::GetDoubleField(const char* field_name, data_size_t* out_len, const
   return true;
 }
 
-bool Dataset::GetIntField(const char* field_name, data_size_t* out_len, const int** out_ptr) {
+bool Dataset::GetIntField(const char* field_name, data_size_t* out_len,
+                          const data_size_t** out_ptr) {
   std::string name(field_name);
   name = Common::Trim(name);
   if (name == std::string("query") || name == std::string("group")) {
@@ -1025,7 +1027,7 @@ void Dataset::DumpTextFile(const char* text_filename) {
   fprintf(file, "num_features: %d\n", num_features_);
   fprintf(file, "num_total_features: %d\n", num_total_features_);
   fprintf(file, "num_groups: %d\n", num_groups_);
-  fprintf(file, "num_data: %d\n", num_data_);
+  fprintf(file, "num_data: %lld\n", num_data_);
   fprintf(file, "feature_names: ");
   for (auto n : feature_names_) {
     fprintf(file, "%s, ", n.c_str());
@@ -1091,8 +1093,10 @@ void Dataset::ConstructHistogramsMultiVal(const MultiValBin* multi_val_bin, cons
   const int num_bin = multi_val_bin->num_bin();
   const int num_bin_aligned = (num_bin + kAlignedSize - 1) / kAlignedSize * kAlignedSize;
   const int min_data_block_size = 1024;
-  const int n_data_block = std::min(num_threads, (num_data + min_data_block_size - 1) / min_data_block_size);
-  const int data_block_size = (num_data + n_data_block - 1) / n_data_block;
+  const int n_data_block = std::min<int>(
+      num_threads, static_cast<int>((num_data + min_data_block_size - 1) /
+                                    min_data_block_size));
+  const data_size_t data_block_size = (num_data + n_data_block - 1) / n_data_block;
 
   const size_t buf_size = static_cast<size_t>(n_data_block - 1)* num_bin_aligned * 2;
   if (hist_buf_.size() < buf_size) {

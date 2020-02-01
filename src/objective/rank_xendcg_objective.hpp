@@ -52,8 +52,8 @@ class RankXENDCG: public ObjectiveFunction {
       score_t* lambdas, score_t* hessians, data_size_t query_id) const {
     // get doc boundary for current query
     const data_size_t start = query_boundaries_[query_id];
-    const data_size_t cnt =
-      query_boundaries_[query_id + 1] - query_boundaries_[query_id];
+    const int cnt = static_cast<int>(query_boundaries_[query_id + 1] -
+                                     query_boundaries_[query_id]);
     // add pointers with offset
     const label_t* label = label_ + start;
     score += start;
@@ -66,13 +66,13 @@ class RankXENDCG: public ObjectiveFunction {
 
     // Prepare a vector of gammas, a parameter of the loss.
     std::vector<double> gammas(cnt);
-    for (data_size_t i = 0; i < cnt; ++i) {
+    for (int i = 0; i < cnt; ++i) {
       gammas[i] = rand_->NextFloat();
     }
 
     // Skip query if sum of labels is 0.
     float sum_labels = 0;
-    for (data_size_t i = 0; i < cnt; ++i) {
+    for (int i = 0; i < cnt; ++i) {
       sum_labels += static_cast<float>(phi(label[i], gammas[i]));
     }
     if (std::fabs(sum_labels) < kEpsilon) {
@@ -82,28 +82,28 @@ class RankXENDCG: public ObjectiveFunction {
     // Approximate gradients and inverse Hessian.
     // First order terms.
     std::vector<double> L1s(cnt);
-    for (data_size_t i = 0; i < cnt; ++i) {
+    for (int i = 0; i < cnt; ++i) {
       L1s[i] = -phi(label[i], gammas[i])/sum_labels + rho[i];
     }
     // Second-order terms.
     std::vector<double> L2s(cnt);
-    for (data_size_t i = 0; i < cnt; ++i) {
-      for (data_size_t j = 0; j < cnt; ++j) {
+    for (int i = 0; i < cnt; ++i) {
+      for (int j = 0; j < cnt; ++j) {
         if (i == j) continue;
         L2s[i] += L1s[j] / (1 - rho[j]);
       }
     }
     // Third-order terms.
     std::vector<double> L3s(cnt);
-    for (data_size_t i = 0; i < cnt; ++i) {
-      for (data_size_t j = 0; j < cnt; ++j) {
+    for (int i = 0; i < cnt; ++i) {
+      for (int j = 0; j < cnt; ++j) {
         if (i == j) continue;
         L3s[i] += rho[j] * L2s[j] / (1 - rho[j]);
       }
     }
 
     // Finally, prepare lambdas and hessians.
-    for (data_size_t i = 0; i < cnt; ++i) {
+    for (int i = 0; i < cnt; ++i) {
       lambdas[i] = static_cast<score_t>(
           L1s[i] + rho[i]*L2s[i] + rho[i]*L3s[i]);
       hessians[i] = static_cast<score_t>(rho[i] * (1.0 - rho[i]));

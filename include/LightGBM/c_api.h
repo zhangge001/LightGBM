@@ -254,8 +254,8 @@ LIGHTGBM_C_EXPORT int LGBM_DatasetCreateFromMats(int32_t nmat,
  * \return 0 when succeed, -1 when failure happens
  */
 LIGHTGBM_C_EXPORT int LGBM_DatasetGetSubset(const DatasetHandle handle,
-                                            const int32_t* used_row_indices,
-                                            int32_t num_used_row_indices,
+                                            const int64_t* used_row_indices,
+                                            int64_t num_used_row_indices,
                                             const char* parameters,
                                             DatasetHandle* out);
 
@@ -336,7 +336,7 @@ LIGHTGBM_C_EXPORT int LGBM_DatasetSetField(DatasetHandle handle,
  */
 LIGHTGBM_C_EXPORT int LGBM_DatasetGetField(DatasetHandle handle,
                                            const char* field_name,
-                                           int* out_len,
+                                           int64_t* out_len,
                                            const void** out_ptr,
                                            int* out_type);
 

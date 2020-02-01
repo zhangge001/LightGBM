@@ -105,11 +105,13 @@ class ArrayArgs {
     return arg_min;
   }
 
-  inline static void Partition(std::vector<VAL_T>* arr, int start, int end, int* l, int* r) {
-    int i = start - 1;
-    int j = end - 1;
-    int p = i;
-    int q = j;
+  template <typename INDEX_T>
+  inline static void Partition(std::vector<VAL_T>* arr, INDEX_T start,
+                               INDEX_T end, INDEX_T* l, INDEX_T* r) {
+    INDEX_T i = start - 1;
+    INDEX_T j = end - 1;
+    INDEX_T p = i;
+    INDEX_T q = j;
     if (start >= end) {
       return;
     }
@@ -126,19 +128,25 @@ class ArrayArgs {
     std::swap(ref[i], ref[end - 1]);
     j = i - 1;
     i = i + 1;
-    for (int k = start; k <= p; k++, j--) { std::swap(ref[k], ref[j]); }
-    for (int k = end - 2; k >= q; k--, i++) { std::swap(ref[i], ref[k]); }
+    for (INDEX_T k = start; k <= p; k++, j--) {
+      std::swap(ref[k], ref[j]);
+    }
+    for (INDEX_T k = end - 2; k >= q; k--, i++) {
+      std::swap(ref[i], ref[k]);
+    }
     *l = j;
     *r = i;
   }
 
   // Note: k refer to index here. e.g. k=0 means get the max number.
-  inline static int ArgMaxAtK(std::vector<VAL_T>* arr, int start, int end, int k) {
+  template <typename INDEX_T>
+  inline static INDEX_T ArgMaxAtK(std::vector<VAL_T>* arr, INDEX_T start,
+                                  INDEX_T end, INDEX_T k) {
     if (start >= end - 1) {
       return start;
     }
-    int l = start;
-    int r = end - 1;
+    INDEX_T l = start;
+    INDEX_T r = end - 1;
     Partition(arr, start, end, &l, &r);
     // if find or all elements are the same.
     if ((k > l && k < r) || (l == start - 1 && r == end - 1)) {
