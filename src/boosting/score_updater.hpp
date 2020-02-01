@@ -58,7 +58,7 @@ class ScoreUpdater {
     Common::FunctionTimer fun_timer("ScoreUpdater::AddScore", global_timer);
     const size_t offset = static_cast<size_t>(num_data_) * cur_tree_id;
     #pragma omp parallel for schedule(static)
-    for (int i = 0; i < num_data_; ++i) {
+    for (data_size_t i = 0; i < num_data_; ++i) {
       score_[offset + i] += val;
     }
   }
@@ -66,7 +66,7 @@ class ScoreUpdater {
   inline void MultiplyScore(double val, int cur_tree_id) {
     const size_t offset = static_cast<size_t>(num_data_) * cur_tree_id;
     #pragma omp parallel for schedule(static)
-    for (int i = 0; i < num_data_; ++i) {
+    for (data_size_t i = 0; i < num_data_; ++i) {
       score_[offset + i] *= val;
     }
   }
