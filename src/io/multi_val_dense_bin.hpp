@@ -64,13 +64,14 @@ public:
   hist[ti] += g; \
   hist[ti + 1] += h; \
 
-  template<bool use_indices, bool use_prefetch, bool use_hessians>
-  void ConstructHistogramInner(const data_size_t* data_indices, data_size_t start, data_size_t end,
+  template<bool use_indices, bool use_prefetch, bool use_hessians, typename INDEX_T>
+  void ConstructHistogramInner(const INDEX_T* data_indices, INDEX_T start,
+                               INDEX_T end,
     const score_t* gradients, const score_t* hessians, hist_t* out) const {
-    data_size_t i = start;
+    INDEX_T i = start;
     if (use_prefetch) {
-      const data_size_t pf_offset = 32 / sizeof(VAL_T);
-      const data_size_t pf_end = end - pf_offset;
+      const int pf_offset = 32 / sizeof(VAL_T);
+      const INDEX_T pf_end = end - pf_offset;
 
       for (; i < pf_end; ++i) {
         const auto idx = use_indices ? data_indices[i] : i;
@@ -106,28 +107,56 @@ public:
   }
   #undef ACC_GH
 
-  void ConstructHistogram(const data_size_t* data_indices, data_size_t start, data_size_t end,
-    const score_t* gradients, const score_t* hessians,
-    hist_t* out) const override {
-    ConstructHistogramInner<true, true, true>(data_indices, start, end, gradients, hessians, out);
+  void ConstructHistogram(const int32_t* data_indices, int32_t start,
+                          int32_t end, const score_t* gradients,
+                          const score_t* hessians, hist_t* out) const override {
+    ConstructHistogramInner<true, true, true, int32_t>(
+        data_indices, start, end, gradients, hessians, out);
   }
 
-  void ConstructHistogram(data_size_t start, data_size_t end,
-    const score_t* gradients, const score_t* hessians,
-    hist_t* out) const override {
-    ConstructHistogramInner<false, false, true>(nullptr, start, end, gradients, hessians, out);
+  void ConstructHistogram(int32_t start, int32_t end, const score_t* gradients,
+                          const score_t* hessians, hist_t* out) const override {
+    ConstructHistogramInner<false, false, true, int32_t>(
+        nullptr, start, end, gradients, hessians, out);
   }
 
-  void ConstructHistogram(const data_size_t* data_indices, data_size_t start, data_size_t end,
-    const score_t* gradients,
-    hist_t* out) const override {
-    ConstructHistogramInner<true, true, false>(data_indices, start, end, gradients, nullptr, out);
+  void ConstructHistogram(const int32_t* data_indices, int32_t start,
+                          int32_t end, const score_t* gradients,
+                          hist_t* out) const override {
+    ConstructHistogramInner<true, true, false, int32_t>(
+        data_indices, start, end, gradients, nullptr, out);
   }
 
-  void ConstructHistogram(data_size_t start, data_size_t end,
-    const score_t* gradients,
-    hist_t* out) const override {
-    ConstructHistogramInner<false, false, false>(nullptr, start, end, gradients, nullptr, out);
+  void ConstructHistogram(int32_t start, int32_t end, const score_t* gradients,
+                          hist_t* out) const override {
+    ConstructHistogramInner<false, false, false, int32_t>(
+        nullptr, start, end, gradients, nullptr, out);
+  }
+
+  void ConstructHistogram(const int64_t* data_indices, int64_t start,
+                          int64_t end, const score_t* gradients,
+                          const score_t* hessians, hist_t* out) const override {
+    ConstructHistogramInner<true, true, true, int64_t>(
+        data_indices, start, end, gradients, hessians, out);
+  }
+
+  void ConstructHistogram(int64_t start, int64_t end, const score_t* gradients,
+                          const score_t* hessians, hist_t* out) const override {
+    ConstructHistogramInner<false, false, true, int64_t>(
+        nullptr, start, end, gradients, hessians, out);
+  }
+
+  void ConstructHistogram(const int64_t* data_indices, int64_t start,
+                          int64_t end, const score_t* gradients,
+                          hist_t* out) const override {
+    ConstructHistogramInner<true, true, false, int64_t>(
+        data_indices, start, end, gradients, nullptr, out);
+  }
+
+  void ConstructHistogram(int64_t start, int64_t end, const score_t* gradients,
+                          hist_t* out) const override {
+    ConstructHistogramInner<false, false, false, int64_t>(
+        nullptr, start, end, gradients, nullptr, out);
   }
 
   void CopySubset(const Bin* full_bin, const data_size_t* used_indices, data_size_t num_used_indices) override {

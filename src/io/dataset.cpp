@@ -657,12 +657,12 @@ MultiValBin* Dataset::TestMultiThreadingMethod(score_t* gradients, score_t* hess
     std::vector<hist_t, Common::AlignmentAllocator<hist_t, kAlignedSize>> hist_data(NumTotalBin() * 2);
     std::chrono::duration<double, std::milli> col_wise_time, row_wise_time;
     auto start_time = std::chrono::steady_clock::now();
-    ConstructHistograms(is_feature_used, nullptr, num_data_, gradients, hessians, gradients, hessians, is_constant_hessian, sparse_bin.get(), true, hist_data.data());
+    ConstructHistograms<data_size_t>(is_feature_used, nullptr, num_data_, gradients, hessians, gradients, hessians, is_constant_hessian, sparse_bin.get(), true, hist_data.data());
     col_wise_time = std::chrono::steady_clock::now() - start_time;
     // init the buffer first
-    ConstructHistogramsMultiVal(all_bin.get(), nullptr, num_data_, gradients, hessians, is_constant_hessian, hist_data.data());
+    ConstructHistogramsMultiVal<data_size_t>(all_bin.get(), nullptr, num_data_, gradients, hessians, is_constant_hessian, hist_data.data());
     start_time = std::chrono::steady_clock::now();
-    ConstructHistogramsMultiVal(all_bin.get(), nullptr, num_data_, gradients, hessians, is_constant_hessian, hist_data.data());
+    ConstructHistogramsMultiVal<data_size_t>(all_bin.get(), nullptr, num_data_, gradients, hessians, is_constant_hessian, hist_data.data());
     row_wise_time = std::chrono::steady_clock::now() - start_time;
     Log::Debug("colwise cost %f seconds, rowwise cost %f seconds", col_wise_time * 1e-3, row_wise_time * 1e-3);
     if (col_wise_time < row_wise_time) {
@@ -1080,7 +1080,10 @@ void Dataset::DumpTextFile(const char* text_filename) {
   fclose(file);
 }
 
-void Dataset::ConstructHistogramsMultiVal(const MultiValBin* multi_val_bin, const data_size_t* data_indices, data_size_t num_data,
+template <typename INDEX_T>
+void Dataset::ConstructHistogramsMultiVal(
+    const MultiValBin* multi_val_bin, const INDEX_T* data_indices,
+    INDEX_T num_data,
                                           const score_t* gradients, const score_t* hessians,
                                           bool is_constant_hessian,
                                           hist_t* hist_data) const {
@@ -1100,7 +1103,7 @@ void Dataset::ConstructHistogramsMultiVal(const MultiValBin* multi_val_bin, cons
   const int n_data_block = std::min<int>(
       num_threads, static_cast<int>((num_data + min_data_block_size - 1) /
                                     min_data_block_size));
-  const data_size_t data_block_size = (num_data + n_data_block - 1) / n_data_block;
+  const INDEX_T data_block_size = (num_data + n_data_block - 1) / n_data_block;
 
   const size_t buf_size = static_cast<size_t>(n_data_block - 1)* num_bin_aligned * 2;
   if (hist_buf_.size() < buf_size) {
@@ -1109,8 +1112,8 @@ void Dataset::ConstructHistogramsMultiVal(const MultiValBin* multi_val_bin, cons
 
   #pragma omp parallel for schedule(static)
   for (int tid = 0; tid < n_data_block; ++tid) {
-    data_size_t start = tid * data_block_size;
-    data_size_t end = std::min(start + data_block_size, num_data);
+    INDEX_T start = tid * data_block_size;
+    INDEX_T end = std::min(start + data_block_size, num_data);
     auto data_ptr = hist_data;
     if (tid > 0) {
       data_ptr = hist_buf_.data() + static_cast<size_t>(num_bin_aligned) * 2 * (tid - 1);
@@ -1168,13 +1171,13 @@ void Dataset::ConstructHistogramsMultiVal(const MultiValBin* multi_val_bin, cons
   global_timer.Stop("Dataset::sparse_bin_histogram_merge");
 }
 
-void Dataset::ConstructHistograms(const std::vector<int8_t>& is_feature_used,
-                                  const data_size_t* data_indices, data_size_t num_data,
-                                  const score_t* gradients, const score_t* hessians,
-                                  score_t* ordered_gradients, score_t* ordered_hessians,
-                                  bool is_constant_hessian,
-                                  const MultiValBin* multi_val_bin, bool is_colwise,
-                                  hist_t* hist_data) const {
+template <typename INDEX_T>
+void Dataset::ConstructHistograms(
+    const std::vector<int8_t>& is_feature_used, const INDEX_T* data_indices,
+    INDEX_T num_data, const score_t* gradients, const score_t* hessians,
+    score_t* ordered_gradients, score_t* ordered_hessians,
+    bool is_constant_hessian, const MultiValBin* multi_val_bin, bool is_colwise,
+    hist_t* hist_data) const {
   Common::FunctionTimer fun_timer("Dataset::ConstructHistograms", global_timer);
   if (num_data < 0 || hist_data == nullptr) {
     return;
@@ -1213,13 +1216,13 @@ void Dataset::ConstructHistograms(const std::vector<int8_t>& is_feature_used,
     if (data_indices != nullptr && num_data < num_data_) {
       if (!is_constant_hessian) {
 #pragma omp parallel for schedule(static)
-        for (data_size_t i = 0; i < num_data; ++i) {
+        for (INDEX_T i = 0; i < num_data; ++i) {
           ordered_gradients[i] = gradients[data_indices[i]];
           ordered_hessians[i] = hessians[data_indices[i]];
         }
       } else {
 #pragma omp parallel for schedule(static)
-        for (data_size_t i = 0; i < num_data; ++i) {
+        for (INDEX_T i = 0; i < num_data; ++i) {
           ordered_gradients[i] = gradients[data_indices[i]];
         }
       }
@@ -1280,7 +1283,7 @@ void Dataset::ConstructHistograms(const std::vector<int8_t>& is_feature_used,
                       num_bin * KHistEntrySize);
           // construct histograms for smaller leaf
           feature_groups_[group]->bin_data_->ConstructHistogram(
-              0, num_data, ptr_ordered_grad, ptr_ordered_hess, data_ptr);
+              static_cast<INDEX_T>(0), num_data, ptr_ordered_grad, ptr_ordered_hess, data_ptr);
           OMP_LOOP_EX_END();
         }
         OMP_THROW_EX();
@@ -1297,7 +1300,7 @@ void Dataset::ConstructHistograms(const std::vector<int8_t>& is_feature_used,
                       num_bin * KHistEntrySize);
           // construct histograms for smaller leaf
           feature_groups_[group]->bin_data_->ConstructHistogram(
-              0, num_data, ptr_ordered_grad, data_ptr);
+              static_cast<INDEX_T>(0), num_data, ptr_ordered_grad, data_ptr);
           // fixed hessian.
           for (int i = 0; i < num_bin; ++i) {
             GET_HESS(data_ptr, i) = GET_HESS(data_ptr, i) * hessians[0];

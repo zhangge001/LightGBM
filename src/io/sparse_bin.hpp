@@ -43,7 +43,8 @@ public:
   }
 
   inline uint32_t RawGet(data_size_t idx) override;
-  inline VAL_T InnerRawGet(data_size_t idx);
+  template <typename INDEX_T>
+  inline VAL_T InnerRawGet(INDEX_T idx);
 
   inline uint32_t Get(data_size_t idx) override {
     VAL_T ret = InnerRawGet(idx);
@@ -103,80 +104,124 @@ public:
   hist[ti] += g; \
   hist[ti + 1] += h; \
 
-  void ConstructHistogram(const data_size_t* data_indices, data_size_t start, data_size_t end,
-    const score_t* ordered_gradients, const score_t* ordered_hessians,
-    hist_t* out) const override {
+
+
+  template <bool use_indices, bool use_prefetch, bool use_hessians,
+            typename INDEX_T>
+  void ConstructHistogramInner(const INDEX_T* data_indices, INDEX_T start,
+                               INDEX_T end,
+                              const score_t* ordered_gradients,
+                              const score_t* ordered_hessians,
+                              hist_t* out) const {
     data_size_t i_delta, cur_pos;
-    InitIndex(data_indices[start], &i_delta, &cur_pos);
-    data_size_t i = start;
-    for (;;) {
-      if (cur_pos < data_indices[i]) {
-        cur_pos += deltas_[++i_delta];
-        if (i_delta >= num_vals_) { break; }
-      } else if (cur_pos > data_indices[i]) {
-        if (++i >= end) { break; }
-      } else {
-        const VAL_T bin = vals_[i_delta];
-        ACC_GH(out, bin, ordered_gradients[i], ordered_hessians[i]);
-        if (++i >= end) { break; }
-        cur_pos += deltas_[++i_delta];
-        if (i_delta >= num_vals_) { break; }
+    if (use_indices) {
+      InitIndex(data_indices[start], &i_delta, &cur_pos);
+      data_size_t i = start;
+      for (;;) {
+        if (cur_pos < data_indices[i]) {
+          cur_pos += deltas_[++i_delta];
+          if (i_delta >= num_vals_) {
+            break;
+          }
+        } else if (cur_pos > data_indices[i]) {
+          if (++i >= end) {
+            break;
+          }
+        } else {
+          const VAL_T bin = vals_[i_delta];
+          if (use_hessians) {
+            ACC_GH(out, bin, ordered_gradients[i], ordered_hessians[i]);
+          } else {
+            ACC_GH(out, bin, ordered_gradients[i], 1.0);
+          }
+          if (++i >= end) {
+            break;
+          }
+          cur_pos += deltas_[++i_delta];
+          if (i_delta >= num_vals_) {
+            break;
+          }
+        }
       }
-    }
-  }
-
-  void ConstructHistogram(data_size_t start, data_size_t end,
-    const score_t* ordered_gradients, const score_t* ordered_hessians,
-    hist_t* out) const override {
-    data_size_t i_delta, cur_pos;
-    InitIndex(start, &i_delta, &cur_pos);
-    while (cur_pos < start && i_delta < num_vals_) {
-      cur_pos += deltas_[++i_delta];
-    }
-    while (cur_pos < end && i_delta < num_vals_) {
-      const VAL_T bin = vals_[i_delta];
-      ACC_GH(out, bin, ordered_gradients[cur_pos], ordered_hessians[cur_pos]);
-      cur_pos += deltas_[++i_delta];
-    }
-  }
-
-  void ConstructHistogram(const data_size_t* data_indices, data_size_t start, data_size_t end,
-    const score_t* ordered_gradients,
-    hist_t* out) const override {
-    data_size_t i_delta, cur_pos;
-    InitIndex(data_indices[start], &i_delta, &cur_pos);
-    data_size_t i = start;
-    for (;;) {
-      if (cur_pos < data_indices[i]) {
+    } else {
+      InitIndex(start, &i_delta, &cur_pos);
+      while (cur_pos < start && i_delta < num_vals_) {
         cur_pos += deltas_[++i_delta];
-        if (i_delta >= num_vals_) { break; }
-      } else if (cur_pos > data_indices[i]) {
-        if (++i >= end) { break; }
-      } else {
-        const VAL_T bin = vals_[i_delta];
-        ACC_GH(out, bin, ordered_gradients[i], 1.0f);
-        if (++i >= end) { break; }
-        cur_pos += deltas_[++i_delta];
-        if (i_delta >= num_vals_) { break; }
       }
-    }
-  }
-
-  void ConstructHistogram(data_size_t start, data_size_t end,
-    const score_t* ordered_gradients,
-    hist_t* out) const override {
-    data_size_t i_delta, cur_pos;
-    InitIndex(start, &i_delta, &cur_pos);
-    while (cur_pos < start && i_delta < num_vals_) {
-      cur_pos += deltas_[++i_delta];
-    }
-    while (cur_pos < end && i_delta < num_vals_) {
-      const VAL_T bin = vals_[i_delta];
-      ACC_GH(out, bin, ordered_gradients[cur_pos], 1.0f);
-      cur_pos += deltas_[++i_delta];
+      while (cur_pos < end && i_delta < num_vals_) {
+        const VAL_T bin = vals_[i_delta];
+        if (use_hessians) {
+          ACC_GH(out, bin, ordered_gradients[cur_pos],
+                 ordered_hessians[cur_pos]);
+        } else {
+          ACC_GH(out, bin, ordered_gradients[cur_pos], 1.0);
+        }
+        cur_pos += deltas_[++i_delta];
+      }
     }
   }
   #undef ACC_GH
+
+  
+  void ConstructHistogram(const int32_t* data_indices, int32_t start,
+                          int32_t end, const score_t* ordered_gradients,
+                          const score_t* ordered_hessians,
+                          hist_t* out) const override {
+    ConstructHistogramInner<true, true, true, int32_t>(
+        data_indices, start, end, ordered_gradients, ordered_hessians, out);
+  }
+
+  void ConstructHistogram(int32_t start, int32_t end,
+                          const score_t* ordered_gradients,
+                          const score_t* ordered_hessians,
+                          hist_t* out) const override {
+    ConstructHistogramInner<false, false, true, int32_t>(
+        nullptr, start, end, ordered_gradients, ordered_hessians, out);
+  }
+
+  void ConstructHistogram(const int32_t* data_indices, int32_t start,
+                          int32_t end, const score_t* ordered_gradients,
+                          hist_t* out) const override {
+    ConstructHistogramInner<true, true, false, int32_t>(
+        data_indices, start, end, ordered_gradients, nullptr, out);
+  }
+
+  void ConstructHistogram(int32_t start, int32_t end,
+                          const score_t* ordered_gradients,
+                          hist_t* out) const override {
+    ConstructHistogramInner<false, false, false, int32_t>(
+        nullptr, start, end, ordered_gradients, nullptr, out);
+  }
+
+  void ConstructHistogram(const int64_t* data_indices, int64_t start,
+                          int64_t end, const score_t* ordered_gradients,
+                          const score_t* ordered_hessians,
+                          hist_t* out) const override {
+    ConstructHistogramInner<true, true, true, int64_t>(
+        data_indices, start, end, ordered_gradients, ordered_hessians, out);
+  }
+
+  void ConstructHistogram(int64_t start, int64_t end,
+                          const score_t* ordered_gradients,
+                          const score_t* ordered_hessians,
+                          hist_t* out) const override {
+    ConstructHistogramInner<false, false, true, int64_t>(
+        nullptr, start, end, ordered_gradients, ordered_hessians, out);
+  }
+
+  void ConstructHistogram(const int64_t* data_indices, int64_t start,
+                          int64_t end, const score_t* ordered_gradients,
+                          hist_t* out) const override {
+    ConstructHistogramInner<true, true, false, int64_t>(
+        data_indices, start, end, ordered_gradients, nullptr, out);
+  }
+
+  void ConstructHistogram(int64_t start, int64_t end,
+                          const score_t* ordered_gradients,
+                          hist_t* out) const override {
+    ConstructHistogramInner<false, false, false, int64_t>(
+        nullptr, start, end, ordered_gradients, nullptr, out);
+  }
 
   inline void NextNonzeroFast(data_size_t* i_delta,
     data_size_t* cur_pos) const {
@@ -197,12 +242,15 @@ public:
     }
   }
 
-
-  data_size_t Split(
-    uint32_t min_bin, uint32_t max_bin, uint32_t default_bin, uint32_t most_freq_bin, MissingType missing_type, bool default_left,
-    uint32_t threshold, data_size_t* data_indices, data_size_t num_data,
-    data_size_t* lte_indices, data_size_t* gt_indices) const override {
-    if (num_data <= 0) { return 0; }
+  template<typename INDEX_T>
+  INDEX_T SplitInner(uint32_t min_bin, uint32_t max_bin, uint32_t default_bin,
+                     uint32_t most_freq_bin, MissingType missing_type,
+                     bool default_left, uint32_t threshold,
+                     INDEX_T* data_indices, INDEX_T num_data,
+                     INDEX_T* lte_indices, INDEX_T* gt_indices) const {
+    if (num_data <= 0) {
+      return 0;
+    }
     VAL_T th = static_cast<VAL_T>(threshold + min_bin);
     const VAL_T minb = static_cast<VAL_T>(min_bin);
     const VAL_T maxb = static_cast<VAL_T>(max_bin);
@@ -213,12 +261,12 @@ public:
       t_default_bin -= 1;
       t_most_freq_bin -= 1;
     }
-    data_size_t lte_count = 0;
-    data_size_t gt_count = 0;
-    data_size_t* default_indices = gt_indices;
-    data_size_t* default_count = &gt_count;
-    data_size_t* missing_default_indices = gt_indices;
-    data_size_t* missing_default_count = &gt_count;
+    INDEX_T lte_count = 0;
+    INDEX_T gt_count = 0;
+    INDEX_T* default_indices = gt_indices;
+    INDEX_T* default_count = &gt_count;
+    INDEX_T* missing_default_indices = gt_indices;
+    INDEX_T* missing_default_count = &gt_count;
     SparseBinIterator<VAL_T> iterator(this, data_indices[0]);
     if (most_freq_bin <= threshold) {
       default_indices = lte_indices;
@@ -229,8 +277,8 @@ public:
         missing_default_indices = lte_indices;
         missing_default_count = &lte_count;
       }
-      for (data_size_t i = 0; i < num_data; ++i) {
-        const data_size_t idx = data_indices[i];
+      for (INDEX_T i = 0; i < num_data; ++i) {
+        const INDEX_T idx = data_indices[i];
         const VAL_T bin = iterator.InnerRawGet(idx);
         if (bin == maxb) {
           missing_default_indices[(*missing_default_count)++] = idx;
@@ -243,14 +291,14 @@ public:
         }
       }
     } else {
-      if ((default_left && missing_type == MissingType::Zero)
-        || (default_bin <= threshold && missing_type != MissingType::Zero)) {
+      if ((default_left && missing_type == MissingType::Zero) ||
+          (default_bin <= threshold && missing_type != MissingType::Zero)) {
         missing_default_indices = lte_indices;
         missing_default_count = &lte_count;
       }
       if (default_bin == most_freq_bin) {
-        for (data_size_t i = 0; i < num_data; ++i) {
-          const data_size_t idx = data_indices[i];
+        for (INDEX_T i = 0; i < num_data; ++i) {
+          const INDEX_T idx = data_indices[i];
           const VAL_T bin = iterator.InnerRawGet(idx);
           if (bin < minb || bin > maxb || t_most_freq_bin == bin) {
             missing_default_indices[(*missing_default_count)++] = idx;
@@ -261,8 +309,8 @@ public:
           }
         }
       } else {
-        for (data_size_t i = 0; i < num_data; ++i) {
-          const data_size_t idx = data_indices[i];
+        for (INDEX_T i = 0; i < num_data; ++i) {
+          const INDEX_T idx = data_indices[i];
           const VAL_T bin = iterator.InnerRawGet(idx);
           if (bin == t_default_bin) {
             missing_default_indices[(*missing_default_count)++] = idx;
@@ -279,32 +327,77 @@ public:
     return lte_count;
   }
 
-  data_size_t SplitCategorical(
-    uint32_t min_bin, uint32_t max_bin, uint32_t most_freq_bin,
-    const uint32_t* threshold, int num_threahold, data_size_t* data_indices, data_size_t num_data,
-    data_size_t* lte_indices, data_size_t* gt_indices) const override {
-    if (num_data <= 0) { return 0; }
-    data_size_t lte_count = 0;
-    data_size_t gt_count = 0;
+  template <typename INDEX_T>
+  INDEX_T SplitCategoricalInner(uint32_t min_bin, uint32_t max_bin,
+                                uint32_t most_freq_bin,
+                                const uint32_t* threshold, int num_threahold,
+                                INDEX_T* data_indices, INDEX_T num_data,
+                                INDEX_T* lte_indices,
+                                INDEX_T* gt_indices) const {
+    if (num_data <= 0) {
+      return 0;
+    }
+    INDEX_T lte_count = 0;
+    INDEX_T gt_count = 0;
     SparseBinIterator<VAL_T> iterator(this, data_indices[0]);
-    data_size_t* default_indices = gt_indices;
-    data_size_t* default_count = &gt_count;
+    INDEX_T* default_indices = gt_indices;
+    INDEX_T* default_count = &gt_count;
     if (Common::FindInBitset(threshold, num_threahold, most_freq_bin)) {
       default_indices = lte_indices;
       default_count = &lte_count;
     }
-    for (data_size_t i = 0; i < num_data; ++i) {
-      const data_size_t idx = data_indices[i];
+    for (INDEX_T i = 0; i < num_data; ++i) {
+      const INDEX_T idx = data_indices[i];
       uint32_t bin = iterator.InnerRawGet(idx);
       if (bin < min_bin || bin > max_bin) {
         default_indices[(*default_count)++] = idx;
-      } else if (Common::FindInBitset(threshold, num_threahold, bin - min_bin)) {
+      } else if (Common::FindInBitset(threshold, num_threahold,
+                                      bin - min_bin)) {
         lte_indices[lte_count++] = idx;
       } else {
         gt_indices[gt_count++] = idx;
       }
     }
     return lte_count;
+  }
+
+
+  int32_t Split(uint32_t min_bin, uint32_t max_bin, uint32_t default_bin,
+                uint32_t most_freq_bin, MissingType missing_type,
+                bool default_left, uint32_t threshold, int32_t* data_indices,
+                int32_t num_data, int32_t* lte_indices,
+                int32_t* gt_indices) const override {
+    return SplitInner(min_bin, max_bin, default_bin, most_freq_bin,
+                      missing_type, default_left, threshold, data_indices,
+                      num_data, lte_indices, gt_indices);
+  }
+  int64_t Split(uint32_t min_bin, uint32_t max_bin, uint32_t default_bin,
+                uint32_t most_freq_bin, MissingType missing_type,
+                bool default_left, uint32_t threshold, int64_t* data_indices,
+                int64_t num_data, int64_t* lte_indices,
+                int64_t* gt_indices) const override {
+    return SplitInner(min_bin, max_bin, default_bin, most_freq_bin,
+                      missing_type, default_left, threshold, data_indices,
+                      num_data, lte_indices, gt_indices);
+  }
+
+  int32_t SplitCategorical(uint32_t min_bin, uint32_t max_bin,
+                           uint32_t most_freq_bin, const uint32_t* threshold,
+                           int num_threahold, int32_t* data_indices,
+                           int32_t num_data, int32_t* lte_indices,
+                           int32_t* gt_indices) const override {
+    return SplitCategoricalInner(min_bin, max_bin, most_freq_bin, threshold,
+                                 num_threahold, data_indices, num_data,
+                                 lte_indices, gt_indices);
+  }
+  int64_t SplitCategorical(uint32_t min_bin, uint32_t max_bin,
+                           uint32_t most_freq_bin, const uint32_t* threshold,
+                           int num_threahold, int64_t* data_indices,
+                           int64_t num_data, int64_t* lte_indices,
+                           int64_t* gt_indices) const override {
+    return SplitCategoricalInner(min_bin, max_bin, most_freq_bin, threshold,
+                                 num_threahold, data_indices, num_data,
+                                 lte_indices, gt_indices);
   }
 
   data_size_t num_data() const override { return num_data_; }
@@ -523,7 +616,8 @@ inline uint32_t SparseBinIterator<VAL_T>::RawGet(data_size_t idx) {
 }
 
 template <typename VAL_T>
-inline VAL_T SparseBinIterator<VAL_T>::InnerRawGet(data_size_t idx) {
+template <typename INDEX_T>
+inline VAL_T SparseBinIterator<VAL_T>::InnerRawGet(INDEX_T idx) {
   while (cur_pos_ < idx) {
     bin_data_->NextNonzeroFast(&i_delta_, &cur_pos_);
   }

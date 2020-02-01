@@ -78,14 +78,15 @@ public:
   hist[ti] += g; \
   hist[ti + 1] += h; \
 
-  template<bool use_indices, bool use_prefetch, bool use_hessians>
-  void ConstructHistogramInner(const data_size_t* data_indices, data_size_t start, data_size_t end,
+  template<bool use_indices, bool use_prefetch, bool use_hessians, typename INDEX_T>
+  void ConstructHistogramInner(const INDEX_T* data_indices, INDEX_T start,
+                               INDEX_T end,
     const score_t* ordered_gradients, const score_t* ordered_hessians, hist_t* out) const {
-    data_size_t i = start;
+    INDEX_T i = start;
 
     if (use_prefetch) {
-      const data_size_t pf_offset = 64;
-      const data_size_t pf_end = end - pf_offset;
+      const int pf_offset = 64;
+      const INDEX_T pf_end = end - pf_offset;
       for (; i < pf_end; ++i) {
         const auto idx = use_indices ? data_indices[i] : i;
         const auto pf_idx = use_indices ? data_indices[i + pf_offset] : i + pf_offset;
@@ -110,35 +111,76 @@ public:
   }
   #undef ACC_GH
 
-  void ConstructHistogram(const data_size_t* data_indices, data_size_t start, data_size_t end,
-    const score_t* ordered_gradients, const score_t* ordered_hessians,
-    hist_t* out) const override {
-    ConstructHistogramInner<true, true, true>(data_indices, start, end, ordered_gradients, ordered_hessians, out);
+
+  void ConstructHistogram(const int32_t* data_indices, int32_t start,
+                          int32_t end, const score_t* ordered_gradients,
+                          const score_t* ordered_hessians,
+                          hist_t* out) const override {
+    ConstructHistogramInner<true, true, true, int32_t>(
+        data_indices, start, end, ordered_gradients, ordered_hessians, out);
   }
 
-  void ConstructHistogram(data_size_t start, data_size_t end,
-    const score_t* ordered_gradients, const score_t* ordered_hessians,
-    hist_t* out) const override {
-    ConstructHistogramInner<false, false, true>(nullptr, start, end, ordered_gradients, ordered_hessians, out);
+  void ConstructHistogram(int32_t start, int32_t end,
+                          const score_t* ordered_gradients,
+                          const score_t* ordered_hessians,
+                          hist_t* out) const override {
+    ConstructHistogramInner<false, false, true, int32_t>(
+        nullptr, start, end, ordered_gradients, ordered_hessians, out);
   }
 
-  void ConstructHistogram(const data_size_t* data_indices, data_size_t start, data_size_t end,
-    const score_t* ordered_gradients,
-    hist_t* out) const override {
-    ConstructHistogramInner<true, true, false>(data_indices, start, end, ordered_gradients, nullptr, out);
+  void ConstructHistogram(const int32_t* data_indices, int32_t start,
+                          int32_t end, const score_t* ordered_gradients,
+                          hist_t* out) const override {
+    ConstructHistogramInner<true, true, false, int32_t>(
+        data_indices, start, end, ordered_gradients, nullptr, out);
   }
 
-  void ConstructHistogram(data_size_t start, data_size_t end,
-    const score_t* ordered_gradients,
-    hist_t* out) const override {
-    ConstructHistogramInner<false, false, false>(nullptr, start, end, ordered_gradients, nullptr, out);
+  void ConstructHistogram(int32_t start, int32_t end,
+                          const score_t* ordered_gradients,
+                          hist_t* out) const override {
+    ConstructHistogramInner<false, false, false, int32_t>(
+        nullptr, start, end, ordered_gradients, nullptr, out);
   }
 
-  data_size_t Split(
-    uint32_t min_bin, uint32_t max_bin, uint32_t default_bin, uint32_t most_freq_bin, MissingType missing_type, bool default_left,
-    uint32_t threshold, data_size_t* data_indices, data_size_t num_data,
-    data_size_t* lte_indices, data_size_t* gt_indices) const override {
-    if (num_data <= 0) { return 0; }
+  void ConstructHistogram(const int64_t* data_indices, int64_t start,
+                          int64_t end, const score_t* ordered_gradients,
+                          const score_t* ordered_hessians,
+                          hist_t* out) const override {
+    ConstructHistogramInner<true, true, true, int64_t>(
+        data_indices, start, end, ordered_gradients, ordered_hessians, out);
+  }
+
+  void ConstructHistogram(int64_t start, int64_t end,
+                          const score_t* ordered_gradients,
+                          const score_t* ordered_hessians,
+                          hist_t* out) const override {
+    ConstructHistogramInner<false, false, true, int64_t>(
+        nullptr, start, end, ordered_gradients, ordered_hessians, out);
+  }
+
+  void ConstructHistogram(const int64_t* data_indices, int64_t start,
+                          int64_t end, const score_t* ordered_gradients,
+                          hist_t* out) const override {
+    ConstructHistogramInner<true, true, false, int64_t>(
+        data_indices, start, end, ordered_gradients, nullptr, out);
+  }
+
+  void ConstructHistogram(int64_t start, int64_t end,
+                          const score_t* ordered_gradients,
+                          hist_t* out) const override {
+    ConstructHistogramInner<false, false, false, int64_t>(
+        nullptr, start, end, ordered_gradients, nullptr, out);
+  }
+
+  template <typename INDEX_T>
+  INDEX_T SplitInner(uint32_t min_bin, uint32_t max_bin, uint32_t default_bin,
+                uint32_t most_freq_bin, MissingType missing_type,
+                bool default_left, uint32_t threshold, INDEX_T* data_indices,
+                INDEX_T num_data, INDEX_T* lte_indices,
+                INDEX_T* gt_indices) const {
+    if (num_data <= 0) {
+      return 0;
+    }
     uint8_t th = static_cast<uint8_t>(threshold + min_bin);
     const uint8_t minb = static_cast<uint8_t>(min_bin);
     const uint8_t maxb = static_cast<uint8_t>(max_bin);
@@ -149,12 +191,12 @@ public:
       t_default_bin -= 1;
       t_most_freq_bin -= 1;
     }
-    data_size_t lte_count = 0;
-    data_size_t gt_count = 0;
-    data_size_t* default_indices = gt_indices;
-    data_size_t* default_count = &gt_count;
-    data_size_t* missing_default_indices = gt_indices;
-    data_size_t* missing_default_count = &gt_count;
+    INDEX_T lte_count = 0;
+    INDEX_T gt_count = 0;
+    INDEX_T* default_indices = gt_indices;
+    INDEX_T* default_count = &gt_count;
+    INDEX_T* missing_default_indices = gt_indices;
+    INDEX_T* missing_default_count = &gt_count;
     if (most_freq_bin <= threshold) {
       default_indices = lte_indices;
       default_count = &lte_count;
@@ -164,8 +206,8 @@ public:
         missing_default_indices = lte_indices;
         missing_default_count = &lte_count;
       }
-      for (data_size_t i = 0; i < num_data; ++i) {
-        const data_size_t idx = data_indices[i];
+      for (INDEX_T i = 0; i < num_data; ++i) {
+        const INDEX_T idx = data_indices[i];
         const uint8_t bin = (data_[idx >> 1] >> ((idx & 1) << 2)) & 0xf;
         if (bin == maxb) {
           missing_default_indices[(*missing_default_count)++] = idx;
@@ -178,14 +220,14 @@ public:
         }
       }
     } else {
-      if ((default_left && missing_type == MissingType::Zero)
-          || (default_bin <= threshold && missing_type != MissingType::Zero)) {
+      if ((default_left && missing_type == MissingType::Zero) ||
+          (default_bin <= threshold && missing_type != MissingType::Zero)) {
         missing_default_indices = lte_indices;
         missing_default_count = &lte_count;
       }
       if (default_bin == most_freq_bin) {
-        for (data_size_t i = 0; i < num_data; ++i) {
-          const data_size_t idx = data_indices[i];
+        for (INDEX_T i = 0; i < num_data; ++i) {
+          const INDEX_T idx = data_indices[i];
           const uint8_t bin = (data_[idx >> 1] >> ((idx & 1) << 2)) & 0xf;
           if (bin < minb || bin > maxb || t_most_freq_bin == bin) {
             missing_default_indices[(*missing_default_count)++] = idx;
@@ -196,8 +238,8 @@ public:
           }
         }
       } else {
-        for (data_size_t i = 0; i < num_data; ++i) {
-          const data_size_t idx = data_indices[i];
+        for (INDEX_T i = 0; i < num_data; ++i) {
+          const INDEX_T idx = data_indices[i];
           const uint8_t bin = (data_[idx >> 1] >> ((idx & 1) << 2)) & 0xf;
           if (bin == t_default_bin) {
             missing_default_indices[(*missing_default_count)++] = idx;
@@ -214,31 +256,75 @@ public:
     return lte_count;
   }
 
-  data_size_t SplitCategorical(
-    uint32_t min_bin, uint32_t max_bin, uint32_t most_freq_bin,
-    const uint32_t* threshold, int num_threahold, data_size_t* data_indices, data_size_t num_data,
-    data_size_t* lte_indices, data_size_t* gt_indices) const override {
-    if (num_data <= 0) { return 0; }
-    data_size_t lte_count = 0;
-    data_size_t gt_count = 0;
-    data_size_t* default_indices = gt_indices;
-    data_size_t* default_count = &gt_count;
+  template<typename INDEX_T>
+  INDEX_T SplitCategoricalInner(uint32_t min_bin, uint32_t max_bin,
+                           uint32_t most_freq_bin, const uint32_t* threshold,
+                           int num_threahold, INDEX_T* data_indices,
+                           INDEX_T num_data, INDEX_T* lte_indices,
+                           INDEX_T* gt_indices) const {
+    if (num_data <= 0) {
+      return 0;
+    }
+    INDEX_T lte_count = 0;
+    INDEX_T gt_count = 0;
+    INDEX_T* default_indices = gt_indices;
+    INDEX_T* default_count = &gt_count;
     if (Common::FindInBitset(threshold, num_threahold, most_freq_bin)) {
       default_indices = lte_indices;
       default_count = &lte_count;
     }
-    for (data_size_t i = 0; i < num_data; ++i) {
-      const data_size_t idx = data_indices[i];
+    for (INDEX_T i = 0; i < num_data; ++i) {
+      const INDEX_T idx = data_indices[i];
       const uint32_t bin = (data_[idx >> 1] >> ((idx & 1) << 2)) & 0xf;
       if (bin < min_bin || bin > max_bin) {
         default_indices[(*default_count)++] = idx;
-      } else if (Common::FindInBitset(threshold, num_threahold, bin - min_bin)) {
+      } else if (Common::FindInBitset(threshold, num_threahold,
+                                      bin - min_bin)) {
         lte_indices[lte_count++] = idx;
       } else {
         gt_indices[gt_count++] = idx;
       }
     }
     return lte_count;
+  }
+
+
+  int32_t Split(uint32_t min_bin, uint32_t max_bin, uint32_t default_bin,
+                uint32_t most_freq_bin, MissingType missing_type,
+                bool default_left, uint32_t threshold, int32_t* data_indices,
+                int32_t num_data, int32_t* lte_indices,
+                int32_t* gt_indices) const override {
+    return SplitInner(min_bin, max_bin, default_bin, most_freq_bin,
+                      missing_type, default_left, threshold, data_indices,
+                      num_data, lte_indices, gt_indices);
+  }
+  int64_t Split(uint32_t min_bin, uint32_t max_bin, uint32_t default_bin,
+                uint32_t most_freq_bin, MissingType missing_type,
+                bool default_left, uint32_t threshold, int64_t* data_indices,
+                int64_t num_data, int64_t* lte_indices,
+                int64_t* gt_indices) const override {
+    return SplitInner(min_bin, max_bin, default_bin, most_freq_bin,
+                      missing_type, default_left, threshold, data_indices,
+                      num_data, lte_indices, gt_indices);
+  }
+
+  int32_t SplitCategorical(uint32_t min_bin, uint32_t max_bin,
+                           uint32_t most_freq_bin, const uint32_t* threshold,
+                           int num_threahold, int32_t* data_indices,
+                           int32_t num_data, int32_t* lte_indices,
+                           int32_t* gt_indices) const override {
+    return SplitCategoricalInner(min_bin, max_bin, most_freq_bin, threshold,
+                                 num_threahold, data_indices, num_data,
+                                 lte_indices, gt_indices);
+  }
+  int64_t SplitCategorical(uint32_t min_bin, uint32_t max_bin,
+                           uint32_t most_freq_bin, const uint32_t* threshold,
+                           int num_threahold, int64_t* data_indices,
+                           int64_t num_data, int64_t* lte_indices,
+                           int64_t* gt_indices) const override {
+    return SplitCategoricalInner(min_bin, max_bin, most_freq_bin, threshold,
+                                 num_threahold, data_indices, num_data,
+                                 lte_indices, gt_indices);
   }
 
   data_size_t num_data() const override { return num_data_; }

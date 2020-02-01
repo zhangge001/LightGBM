@@ -350,33 +350,47 @@ class Bin {
   * \param ordered_hessians Pointer to hessians, the data_indices[i]-th data's hessian is ordered_hessians[i]
   * \param out Output Result
   */
-  virtual void ConstructHistogram(
-    const data_size_t* data_indices, data_size_t start, data_size_t end,
-    const score_t* ordered_gradients, const score_t* ordered_hessians,
-    hist_t* out) const = 0;
+  virtual void ConstructHistogram(const int32_t* data_indices, int32_t start,
+                                  int32_t end,
+                                  const score_t* ordered_gradients,
+                                  const score_t* ordered_hessians,
+                                  hist_t* out) const = 0;
 
-  virtual void ConstructHistogram(data_size_t start, data_size_t end,
-    const score_t* ordered_gradients, const score_t* ordered_hessians,
-    hist_t* out) const = 0;
+  virtual void ConstructHistogram(int32_t start, int32_t end,
+                                  const score_t* ordered_gradients,
+                                  const score_t* ordered_hessians,
+                                  hist_t* out) const = 0;
 
-  /*!
-  * \brief Construct histogram of this feature,
-  *        Note: We use ordered_gradients and ordered_hessians to improve cache hit chance
-  *        The naive solution is using gradients[data_indices[i]] for data_indices[i] to get gradients,
-  which is not cache friendly, since the access of memory is not continuous.
-  *        ordered_gradients and ordered_hessians are preprocessed, and they are re-ordered by data_indices.
-  *        Ordered_gradients[i] is aligned with data_indices[i]'s gradients (same for ordered_hessians).
-  * \param data_indices Used data indices in current leaf
-  * \param start start index in data_indices
-  * \param end end index in data_indices
-  * \param ordered_gradients Pointer to gradients, the data_indices[i]-th data's gradient is ordered_gradients[i]
-  * \param out Output Result
-  */
-  virtual void ConstructHistogram(const data_size_t* data_indices, data_size_t start, data_size_t end,
-                                  const score_t* ordered_gradients, hist_t* out) const = 0;
+  virtual void ConstructHistogram(const int32_t* data_indices, int32_t start,
+                                  int32_t end,
+                                  const score_t* ordered_gradients,
+                                  hist_t* out) const = 0;
 
-  virtual void ConstructHistogram(data_size_t start, data_size_t end,
-                                  const score_t* ordered_gradients, hist_t* out) const = 0;
+  virtual void ConstructHistogram(int32_t start, int32_t end,
+                                  const score_t* ordered_gradients,
+                                  hist_t* out) const = 0;
+
+  virtual void ConstructHistogram(const int64_t* data_indices, int64_t start,
+                                  int64_t end,
+                                  const score_t* ordered_gradients,
+                                  const score_t* ordered_hessians,
+                                  hist_t* out) const = 0;
+
+  virtual void ConstructHistogram(int64_t start, int64_t end,
+                                  const score_t* ordered_gradients,
+                                  const score_t* ordered_hessians,
+                                  hist_t* out) const = 0;
+
+  virtual void ConstructHistogram(const int64_t* data_indices, int64_t start,
+                                  int64_t end,
+                                  const score_t* ordered_gradients,
+                                  hist_t* out) const = 0;
+
+  virtual void ConstructHistogram(int64_t start, int64_t end,
+                                  const score_t* ordered_gradients,
+                                  hist_t* out) const = 0;
+
+
 
   /*!
   * \brief Split data according to threshold, if bin <= threshold, will put into left(lte_indices), else put into right(gt_indices)
@@ -393,10 +407,19 @@ class Bin {
   * \param gt_indices After called this function. The greater data indices will store on this object.
   * \return The number of less than or equal data.
   */
-  virtual data_size_t Split(uint32_t min_bin, uint32_t max_bin,
-    uint32_t default_bin, uint32_t most_freq_bin, MissingType missing_type, bool default_left, uint32_t threshold,
-    data_size_t* data_indices, data_size_t num_data,
-    data_size_t* lte_indices, data_size_t* gt_indices) const = 0;
+  virtual int32_t Split(uint32_t min_bin, uint32_t max_bin,
+                        uint32_t default_bin, uint32_t most_freq_bin,
+                        MissingType missing_type, bool default_left,
+                        uint32_t threshold, int32_t* data_indices,
+                        int32_t num_data, int32_t* lte_indices,
+                        int32_t* gt_indices) const = 0;
+
+  virtual int64_t Split(uint32_t min_bin, uint32_t max_bin,
+                        uint32_t default_bin, uint32_t most_freq_bin,
+                        MissingType missing_type, bool default_left,
+                        uint32_t threshold, int64_t* data_indices,
+                        int64_t num_data, int64_t* lte_indices,
+                        int64_t* gt_indices) const = 0;
 
   /*!
   * \brief Split data according to threshold, if bin <= threshold, will put into left(lte_indices), else put into right(gt_indices)
@@ -411,10 +434,19 @@ class Bin {
   * \param gt_indices After called this function. The greater data indices will store on this object.
   * \return The number of less than or equal data.
   */
-  virtual data_size_t SplitCategorical(uint32_t min_bin, uint32_t max_bin,
-                            uint32_t most_freq_bin, const uint32_t* threshold, int num_threshold,
-                            data_size_t* data_indices, data_size_t num_data,
-                            data_size_t* lte_indices, data_size_t* gt_indices) const = 0;
+  virtual int32_t SplitCategorical(uint32_t min_bin, uint32_t max_bin,
+                                   uint32_t most_freq_bin,
+                                   const uint32_t* threshold, int num_threshold,
+                                   int32_t* data_indices, int32_t num_data,
+                                   int32_t* lte_indices,
+                                   int32_t* gt_indices) const = 0;
+
+  virtual int64_t SplitCategorical(uint32_t min_bin, uint32_t max_bin,
+                                   uint32_t most_freq_bin,
+                                   const uint32_t* threshold, int num_threshold,
+                                   int64_t* data_indices, int64_t num_data,
+                                   int64_t* lte_indices,
+                                   int64_t* gt_indices) const = 0;
 
   /*!
   * \brief After pushed all feature data, call this could have better refactor for bin data
@@ -459,20 +491,41 @@ public:
 
   virtual void CopySubset(const Bin* full_bin, const data_size_t* used_indices, data_size_t num_used_indices) = 0;
 
-  virtual void ConstructHistogram(
-    const data_size_t* data_indices, data_size_t start, data_size_t end,
-    const score_t* gradients, const score_t* hessians,
-    hist_t* out) const = 0;
+  virtual void ConstructHistogram(const int32_t* data_indices, int32_t start,
+                                  int32_t end, const score_t* gradients,
+                                  const score_t* hessians,
+                                  hist_t* out) const = 0;
 
-  virtual void ConstructHistogram(data_size_t start, data_size_t end,
-    const score_t* gradients, const score_t* hessians,
-    hist_t* out) const = 0;
+  virtual void ConstructHistogram(int32_t start, int32_t end,
+                                  const score_t* gradients,
+                                  const score_t* hessians,
+                                  hist_t* out) const = 0;
 
-  virtual void ConstructHistogram(const data_size_t* data_indices, data_size_t start, data_size_t end,
-    const score_t* ordered_gradients, hist_t* out) const = 0;
+  virtual void ConstructHistogram(const int32_t* data_indices, int32_t start,
+                                  int32_t end, const score_t* ordered_gradients,
+                                  hist_t* out) const = 0;
 
-  virtual void ConstructHistogram(data_size_t start, data_size_t end,
-    const score_t* ordered_gradients, hist_t* out) const = 0;
+  virtual void ConstructHistogram(int32_t start, int32_t end,
+                                  const score_t* ordered_gradients,
+                                  hist_t* out) const = 0;
+
+  virtual void ConstructHistogram(const int64_t* data_indices, int64_t start,
+                                  int64_t end, const score_t* gradients,
+                                  const score_t* hessians,
+                                  hist_t* out) const = 0;
+
+  virtual void ConstructHistogram(int64_t start, int64_t end,
+                                  const score_t* gradients,
+                                  const score_t* hessians,
+                                  hist_t* out) const = 0;
+
+  virtual void ConstructHistogram(const int64_t* data_indices, int64_t start,
+                                  int64_t end, const score_t* ordered_gradients,
+                                  hist_t* out) const = 0;
+
+  virtual void ConstructHistogram(int64_t start, int64_t end,
+                                  const score_t* ordered_gradients,
+                                  hist_t* out) const = 0;
 
   virtual void FinishLoad() = 0;
 

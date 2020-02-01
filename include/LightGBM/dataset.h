@@ -432,28 +432,35 @@ class Dataset {
 
   LIGHTGBM_EXPORT void CreateValid(const Dataset* dataset);
 
+  template <typename INDEX_T>
   void ConstructHistograms(const std::vector<int8_t>& is_feature_used,
-                           const data_size_t* data_indices, data_size_t num_data,
+                           const INDEX_T* data_indices, INDEX_T num_data,
                            const score_t* gradients, const score_t* hessians,
-                           score_t* ordered_gradients, score_t* ordered_hessians,
-                           bool is_constant_hessian,
+                           score_t* ordered_gradients,
+                           score_t* ordered_hessians, bool is_constant_hessian,
                            const MultiValBin* multi_val_bin, bool is_colwise,
                            hist_t* histogram_data) const;
 
-  void ConstructHistogramsMultiVal(const MultiValBin* multi_val_bin, const data_size_t* data_indices, data_size_t num_data,
-                                  const score_t* gradients, const score_t* hessians,
-                                  bool is_constant_hessian,
-                                  hist_t* histogram_data) const;
+  template <typename INDEX_T>
+  void ConstructHistogramsMultiVal(const MultiValBin* multi_val_bin,
+                                   const INDEX_T* data_indices,
+                                   INDEX_T num_data, const score_t* gradients,
+                                   const score_t* hessians,
+                                   bool is_constant_hessian,
+                                   hist_t* histogram_data) const;
 
   void FixHistogram(int feature_idx, double sum_gradient, double sum_hessian, hist_t* data) const;
 
-  inline data_size_t Split(int feature,
-                           const uint32_t* threshold, int num_threshold,  bool default_left,
-                           data_size_t* data_indices, data_size_t num_data,
-                           data_size_t* lte_indices, data_size_t* gt_indices) const {
+  template <typename INDEX_T>
+  inline INDEX_T Split(int feature, const uint32_t* threshold,
+                       int num_threshold, bool default_left,
+                       INDEX_T* data_indices, INDEX_T num_data,
+                       INDEX_T* lte_indices, INDEX_T* gt_indices) const {
     const int group = feature2group_[feature];
     const int sub_feature = feature2subfeature_[feature];
-    return feature_groups_[group]->Split(sub_feature, threshold, num_threshold, default_left, data_indices, num_data, lte_indices, gt_indices);
+    return feature_groups_[group]->Split(sub_feature, threshold, num_threshold,
+                                         default_left, data_indices, num_data,
+                                         lte_indices, gt_indices);
   }
 
   inline int SubFeatureBinOffset(int i) const {
