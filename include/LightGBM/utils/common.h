@@ -399,7 +399,7 @@ inline static void Int64ToStr(int64_t value, char* buffer,
 #ifdef _MSC_VER
   sprintf_s(buffer, buffer_len, "%I64d", value);
 #else
-  sprintf(buffer, "%lld", value);
+  sprintf(buffer, "%ld", value);
 #endif
 }
 
