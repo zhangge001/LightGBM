@@ -1027,15 +1027,11 @@ void Dataset::DumpTextFile(const char* text_filename) {
   fprintf(file, "num_features: %d\n", num_features_);
   fprintf(file, "num_total_features: %d\n", num_total_features_);
   fprintf(file, "num_groups: %d\n", num_groups_);
-  if (sizeof(num_data_) <= 4) {
-    fprintf(file, "num_data: %d\n", num_data_);
-  } else {
 #if defined(_MSC_VER)
-    fprintf(file, "num_data: %I64d\n", num_data_);
+  fprintf(file, "num_data: %I64d\n", num_data_);
 #else
-    fprintf(file, "num_data: %ld\n", num_data_);
+  fprintf(file, "num_data: %ld\n", num_data_);
 #endif
-  }
   fprintf(file, "feature_names: ");
   for (auto n : feature_names_) {
     fprintf(file, "%s, ", n.c_str());
