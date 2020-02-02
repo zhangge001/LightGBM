@@ -23,8 +23,15 @@
 
 namespace LightGBM {
 
+#define DATA_SIZE_USE_INT64 1
+
 /*! \brief Type of data size, it is better to use signed type*/
+#ifdef DATA_SIZE_USE_INT64
 typedef int64_t data_size_t;
+#else
+typedef int32_t data_size_t;
+#endif  //  DATA_SIZE_USE_INT64
+
 
 // Enable following macro to use double for score_t
 // #define SCORE_T_USE_DOUBLE

@@ -228,13 +228,13 @@ std::string Tree::ToString() const {
     << Common::ArrayToString(leaf_value_, num_leaves_) << '\n';
   str_buf << "leaf_weight="
     << Common::ArrayToString(leaf_weight_, num_leaves_) << '\n';
-  if (sizeof(data_size_t) <= 4) {
-    str_buf << "leaf_count="
-            << Common::ArrayToStringFast(leaf_count_, num_leaves_) << '\n';
-  } else {
-    str_buf << "leaf_count="
-            << Common::ArrayToString(leaf_count_, num_leaves_) << '\n';
-  }
+#ifdef DATA_SIZE_USE_INT64
+  str_buf << "leaf_count=" << Common::ArrayToString(leaf_count_, num_leaves_)
+          << '\n';
+#else
+  str_buf << "leaf_count="
+          << Common::ArrayToStringFast(leaf_count_, num_leaves_) << '\n';
+#endif
   str_buf << "internal_value="
     << Common::ArrayToStringFast(internal_value_, num_leaves_ - 1) << '\n';
   str_buf << "internal_weight="

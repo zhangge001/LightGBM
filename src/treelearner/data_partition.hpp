@@ -17,6 +17,7 @@ namespace LightGBM {
 /*!
 * \brief DataPartition is used to store the the partition of data on tree.
 */
+template<typename T>
 class DataPartition {
  public:
   DataPartition(data_size_t num_data, int num_leaves)
@@ -62,27 +63,30 @@ class DataPartition {
     if (used_data_indices_ == nullptr) {
       // if using all data
       leaf_count_[0] = num_data_;
-      #pragma omp parallel for schedule(static)
-      for (data_size_t i = 0; i < num_data_; ++i) {
+#pragma omp parallel for schedule(static)
+      for (T i = 0; i < num_data_; ++i) {
         indices_[i] = i;
       }
     } else {
       // if bagging
-      leaf_count_[0] = used_data_count_;
-      std::memcpy(indices_.data(), used_data_indices_, used_data_count_ * sizeof(data_size_t));
+      leaf_count_[0] = static_cast<T>(used_data_count_);
+#pragma omp parallel for schedule(static)
+      for (T i = 0; i < used_data_count_; ++i) {
+        indices_[i] = static_cast<T>(used_data_indices_[i]);
+      }
     }
   }
 
   void ResetByLeafPred(const std::vector<int>& leaf_pred, int num_leaves) {
     ResetLeaves(num_leaves);
-    std::vector<std::vector<data_size_t>> indices_per_leaf(num_leaves_);
-    for (data_size_t i = 0; i < static_cast<data_size_t>(leaf_pred.size()); ++i) {
+    std::vector<std::vector<T>> indices_per_leaf(num_leaves_);
+    for (T i = 0; i < static_cast<T>(leaf_pred.size()); ++i) {
       indices_per_leaf[leaf_pred[i]].push_back(i);
     }
-    data_size_t offset = 0;
+    T offset = 0;
     for (int i = 0; i < num_leaves_; ++i) {
       leaf_begin_[i] = offset;
-      leaf_count_[i] = static_cast<data_size_t>(indices_per_leaf[i].size());
+      leaf_count_[i] = static_cast<T>(indices_per_leaf[i].size());
       std::copy(indices_per_leaf[i].begin(), indices_per_leaf[i].end(), indices_.begin() + leaf_begin_[i]);
       offset += leaf_count_[i];
     }
@@ -94,9 +98,9 @@ class DataPartition {
   * \param indices output data indices
   * \return number of data on this leaf
   */
-  const data_size_t* GetIndexOnLeaf(int leaf, data_size_t* out_len) const {
+  const T* GetIndexOnLeaf(int leaf, T* out_len) const {
     // copy reference, maybe unsafe, but faster
-    data_size_t begin = leaf_begin_[leaf];
+    T begin = leaf_begin_[leaf];
     *out_len = leaf_count_[leaf];
     return indices_.data() + begin;
   }
@@ -112,15 +116,15 @@ class DataPartition {
              const uint32_t* threshold, int num_threshold, bool default_left,
              int right_leaf) {
     Common::FunctionTimer fun_timer("DataPartition::Split", global_timer);
-    const data_size_t min_inner_size = 512;
+    const T min_inner_size = 512;
     // get leaf boundary
-    const data_size_t begin = leaf_begin_[leaf];
-    const data_size_t cnt = leaf_count_[leaf];
+    const T begin = leaf_begin_[leaf];
+    const T cnt = leaf_count_[leaf];
 
     const int nblock = std::min<int>(
         num_threads_,
         static_cast<int>((cnt + min_inner_size - 1) / min_inner_size));
-    data_size_t inner_size = SIZE_ALIGNED((cnt + nblock - 1) / nblock);
+    T inner_size = SIZE_ALIGNED((cnt + nblock - 1) / nblock);
     auto left_start = indices_.data() + begin;
     global_timer.Start("DataPartition::Split.MT");
     // split data multi-threading
@@ -128,15 +132,15 @@ class DataPartition {
 #pragma omp parallel for schedule(static, 1)
     for (int i = 0; i < nblock; ++i) {
       OMP_LOOP_EX_BEGIN();
-      data_size_t cur_start = i * inner_size;
-      data_size_t cur_cnt = std::min(inner_size, cnt - cur_start);
+      T cur_start = i * inner_size;
+      T cur_cnt = std::min(inner_size, cnt - cur_start);
       if (cur_cnt <= 0) {
         left_cnts_buf_[i] = 0;
         right_cnts_buf_[i] = 0;
         continue;
       }
       // split data inner, reduce the times of function called
-      data_size_t cur_left_count =
+      T cur_left_count =
           dataset->Split(feature, threshold, num_threshold, default_left,
                          left_start + cur_start, cur_cnt,
                          temp_left_indices_.data() + cur_start,
@@ -157,7 +161,7 @@ class DataPartition {
       right_write_pos_buf_[i] =
           right_write_pos_buf_[i - 1] + right_cnts_buf_[i - 1];
     }
-    data_size_t left_cnt =
+    T left_cnt =
         left_write_pos_buf_[nblock - 1] + left_cnts_buf_[nblock - 1];
 
     auto right_start = left_start + left_cnt;
@@ -190,35 +194,35 @@ class DataPartition {
   * \param leaf index of leaf
   * \return number of data of this leaf
   */
-  data_size_t leaf_count(int leaf) const { return leaf_count_[leaf]; }
+  T leaf_count(int leaf) const { return leaf_count_[leaf]; }
 
   /*!
   * \brief Get leaf begin
   * \param leaf index of leaf
   * \return begin index of this leaf
   */
-  data_size_t leaf_begin(int leaf) const { return leaf_begin_[leaf]; }
+  T leaf_begin(int leaf) const { return leaf_begin_[leaf]; }
 
-  const data_size_t* indices() const { return indices_.data(); }
+  const T* indices() const { return indices_.data(); }
 
   /*! \brief Get number of leaves */
   int num_leaves() const { return num_leaves_; }
 
  private:
   /*! \brief Number of all data */
-  data_size_t num_data_;
+  T num_data_;
   /*! \brief Number of all leaves */
   int num_leaves_;
   /*! \brief start index of data on one leaf */
-  std::vector<data_size_t> leaf_begin_;
+  std::vector<T> leaf_begin_;
   /*! \brief number of data on one leaf */
-  std::vector<data_size_t> leaf_count_;
+  std::vector<T> leaf_count_;
   /*! \brief Store all data's indices, order by leaf[data_in_leaf0,..,data_leaf1,..] */
-  std::vector<data_size_t, Common::AlignmentAllocator<data_size_t, kAlignedSize>> indices_;
+  std::vector<T, Common::AlignmentAllocator<T, kAlignedSize>> indices_;
   /*! \brief team indices buffer for split */
-  std::vector<data_size_t, Common::AlignmentAllocator<data_size_t, kAlignedSize>> temp_left_indices_;
+  std::vector<T, Common::AlignmentAllocator<T, kAlignedSize>> temp_left_indices_;
   /*! \brief team indices buffer for split */
-  std::vector<data_size_t, Common::AlignmentAllocator<data_size_t, kAlignedSize>> temp_right_indices_;
+  std::vector<T, Common::AlignmentAllocator<T, kAlignedSize>> temp_right_indices_;
   /*! \brief used data indices, used for bagging */
   const data_size_t* used_data_indices_;
   /*! \brief used data count, used for bagging */
@@ -226,15 +230,15 @@ class DataPartition {
   /*! \brief number of threads */
   int num_threads_;
   /*! \brief Buffer for multi-threading data partition, used to store offset for different threads */
-  std::vector<data_size_t> offsets_buf_;
+  std::vector<T> offsets_buf_;
   /*! \brief Buffer for multi-threading data partition, used to store left count after split for different threads */
-  std::vector<data_size_t> left_cnts_buf_;
+  std::vector<T> left_cnts_buf_;
   /*! \brief Buffer for multi-threading data partition, used to store right count after split for different threads */
-  std::vector<data_size_t> right_cnts_buf_;
+  std::vector<T> right_cnts_buf_;
   /*! \brief Buffer for multi-threading data partition, used to store write position of left leaf for different threads */
-  std::vector<data_size_t> left_write_pos_buf_;
+  std::vector<T> left_write_pos_buf_;
   /*! \brief Buffer for multi-threading data partition, used to store write position of right leaf for different threads */
-  std::vector<data_size_t> right_write_pos_buf_;
+  std::vector<T> right_write_pos_buf_;
 };
 
 }  // namespace LightGBM
