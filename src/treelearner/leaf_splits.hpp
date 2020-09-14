@@ -69,7 +69,6 @@ class LeafSplits {
     data_indices_ = nullptr;
     double tmp_sum_gradients = 0.0f;
     double tmp_sum_hessians = 0.0f;
-#pragma omp parallel for schedule(static) reduction(+:tmp_sum_gradients, tmp_sum_hessians)
     for (data_size_t i = 0; i < num_data_in_leaf_; ++i) {
       tmp_sum_gradients += gradients[i];
       tmp_sum_hessians += hessians[i];
@@ -90,7 +89,6 @@ class LeafSplits {
     data_indices_ = data_partition->GetIndexOnLeaf(leaf, &num_data_in_leaf_);
     double tmp_sum_gradients = 0.0f;
     double tmp_sum_hessians = 0.0f;
-#pragma omp parallel for schedule(static) reduction(+:tmp_sum_gradients, tmp_sum_hessians)
     for (data_size_t i = 0; i < num_data_in_leaf_; ++i) {
       data_size_t idx = data_indices_[i];
       tmp_sum_gradients += gradients[idx];
