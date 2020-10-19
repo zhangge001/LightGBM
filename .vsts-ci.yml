@@ -1,7 +1,7 @@
 trigger:
   branches:
     include:
-    - master
+    - docker_test
   tags:
     include:
     - v*
@@ -13,7 +13,7 @@ variables:
 resources:
   containers:
   - container: ubuntu1404
-    image: lightgbm/vsts-agent:ubuntu-14.04
+    image: lightgbm/vsts-agent:ubuntu-14.04-dev
 jobs:
 ###########################################
 - job: Linux
